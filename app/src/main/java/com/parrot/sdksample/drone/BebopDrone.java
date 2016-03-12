@@ -109,7 +109,7 @@ public class BebopDrone {
 
     private final Handler mHandler;
 
-    private ARDeviceController mDeviceController;
+    public ARDeviceController mDeviceController;
     private SDCardModule mSDCardModule;
     private ARCONTROLLER_DEVICE_STATE_ENUM mState;
     private ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_ENUM mFlyingState;
@@ -131,6 +131,8 @@ public class BebopDrone {
         if (ARDISCOVERY_PRODUCT_FAMILY_ENUM.ARDISCOVERY_PRODUCT_FAMILY_ARDRONE.equals(family)) {
 
             discoveryDevice = createDiscoveryDevice(deviceService, productType);
+
+            ARDiscoveryDevice discoveryDevice = createDiscoveryDevice(deviceService, productType);
             if (discoveryDevice != null) {
                 mDeviceController = createDeviceController(discoveryDevice);
             }

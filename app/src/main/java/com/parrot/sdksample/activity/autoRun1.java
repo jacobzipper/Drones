@@ -112,39 +112,31 @@ public class autoRun1 extends AppCompatActivity  {
         // Auto Starts here
         findViewById(R.id.autoButton).setOnClickListener(new View.OnClickListener(){
             public void onClick(View v) {
-                mBebopDrone.takeOff();
-                try{
-                    //init device
-                    deviceController = new ARDeviceController(mBebopDrone.discoveryDevice);
-                }catch(Exception e) {}
-                while(true) {
-                    deviceController.addListener(new ARDeviceControllerListener() {
-                        @Override
-                        public void onStateChanged(ARDeviceController deviceController, ARCONTROLLER_DEVICE_STATE_ENUM newState, ARCONTROLLER_ERROR_ENUM error) {
-
-                        }
-
-                        @Override
-                        public void onExtensionStateChanged(ARDeviceController deviceController, ARCONTROLLER_DEVICE_STATE_ENUM newState, ARDISCOVERY_PRODUCT_ENUM product, String name, ARCONTROLLER_ERROR_ENUM error) {
-
-                        }
-
-                        @Override
-                        public void onCommandReceived(ARDeviceController deviceController, ARCONTROLLER_DICTIONARY_KEY_ENUM commandKey, ARControllerDictionary elementDictionary) {if ((commandKey == ARCONTROLLER_DICTIONARY_KEY_ENUM.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED) && (elementDictionary != null)){
-                            ARControllerArgumentDictionary<Object> args = elementDictionary.get(ARControllerDictionary.ARCONTROLLER_DICTIONARY_SINGLE_KEY);
-                            if (args != null) {
-                                latitude = (double)args.get(ARFeatureARDrone3.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED_LATITUDE);
-                                longitude = (double)args.get(ARFeatureARDrone3.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED_LONGITUDE);
-                                altitude = (double)args.get(ARFeatureARDrone3.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED_ALTITUDE);
-                            }
-                        }
-                        }
-                    });
-                    if(altitude > .2) break;
+                boolean cont = true;
+                try {
+                    deviceController = mBebopDrone.mDeviceController;
+                }catch(Exception e){e.printStackTrace();}
+                while(cont)
+                {
+                    switch (mBebopDrone.getFlyingState()) {
+                        case ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_LANDED:
+                            deviceController.getFeatureARDrone3().sendPilotingTakeOff();
+                            break;
+                        case ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_FLYING:
+                            break;
+                        case ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_HOVERING:
+                            //mBebopDrone.setPitch((byte)75);
+                            deviceController.getFeatureARDrone3().sendPilotingMoveBy((float) 2.0, (float) 0.0, (float) 0.0, (float) 0.0);
+                            cont = false;
+                            break;
+                        default:
+                            break;
+                    }
                 }
                 mBebopDrone.land();
 
             }
+
         });
 
         findViewById(R.id.eLand).setOnClickListener(new View.OnClickListener(){
@@ -157,7 +149,8 @@ public class autoRun1 extends AppCompatActivity  {
         mTakeOffLandBt = (Button) findViewById(R.id.takeOffOrLandBt);
         mTakeOffLandBt.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                switch (mBebopDrone.getFlyingState()) {
+                switch (mBebopDrone.getFlyingState())
+                {
                     case ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_LANDED:
                         mBebopDrone.takeOff();
                         break;

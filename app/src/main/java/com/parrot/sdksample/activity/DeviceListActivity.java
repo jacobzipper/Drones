@@ -60,6 +60,8 @@ public class DeviceListActivity extends AppCompatActivity {
                     case ARDISCOVERY_PRODUCT_ARDRONE:
                     case ARDISCOVERY_PRODUCT_BEBOP_2:
                         intent = new Intent(DeviceListActivity.this, autoRun1.class);
+                        //intent = new Intent(DeviceListActivity.this, BebopActivity.class);
+
                         break;
 
                     case ARDISCOVERY_PRODUCT_SKYCONTROLLER:
