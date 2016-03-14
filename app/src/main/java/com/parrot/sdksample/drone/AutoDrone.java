@@ -5,6 +5,7 @@ import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
+import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_ENUM;
 import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_MEDIARECORDEVENT_PICTUREEVENTCHANGED_ERROR_ENUM;
 import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_ENUM;
 import com.parrot.arsdk.arcontroller.ARCONTROLLER_DEVICE_STATE_ENUM;
@@ -34,8 +35,8 @@ import com.parrot.arsdk.arutils.ARUtilsManager;
 import java.util.ArrayList;
 import java.util.List;
 
-public class BebopDrone {
-    private static final String TAG = "BebopDrone";
+public class AutoDrone {
+    private static final String TAG = "AutoDrone";
 
     private static final int DEVICE_PORT = 21;
 
@@ -105,18 +106,20 @@ public class BebopDrone {
         void onDownloadComplete(String mediaName);
     }
 
-    private final List<Listener> mListeners;
+    private List<Listener> mListeners;
 
-    private final Handler mHandler;
+    private Handler mHandler;
 
-    public ARDeviceController mDeviceController;
+    private ARDeviceController mDeviceController;
     private SDCardModule mSDCardModule;
     private ARCONTROLLER_DEVICE_STATE_ENUM mState;
     private ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_ENUM mFlyingState;
     private String mCurrentRunId;
-    public ARDiscoveryDevice discoveryDevice;
-
-    public BebopDrone(Context context, @NonNull ARDiscoveryDeviceService deviceService) {
+    private ARDiscoveryDevice discoveryDevice;
+    public double altitude;
+    public double longitude;
+    public double latitude;
+    public AutoDrone(Context context, @NonNull ARDiscoveryDeviceService deviceService) {
 
         mListeners = new ArrayList<>();
 
@@ -156,7 +159,7 @@ public class BebopDrone {
             }
 
         } else {
-            Log.e(TAG, "DeviceService type is not supported by BebopDrone");
+            Log.e(TAG, "DeviceService type is not supported by AutoDrone");
         }
     }
 
@@ -246,7 +249,7 @@ public class BebopDrone {
 
     /**
      * Set the forward/backward angle of the drone
-     * Note that {@link BebopDrone#setFlag(byte)} should be set to 1 in order to take in account the pitch value
+     * Note that {@link AutoDrone#setFlag(byte)} should be set to 1 in order to take in account the pitch value
      * @param pitch value in percentage from -100 to 100
      */
     public void setPitch(byte pitch) {
@@ -257,13 +260,17 @@ public class BebopDrone {
 
     /**
      * Set the side angle of the drone
-     * Note that {@link BebopDrone#setFlag(byte)} should be set to 1 in order to take in account the roll value
+     * Note that {@link AutoDrone#setFlag(byte)} should be set to 1 in order to take in account the roll value
      * @param roll value in percentage from -100 to 100
      */
     public void setRoll(byte roll) {
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))) {
             mDeviceController.getFeatureARDrone3().setPilotingPCMDRoll(roll);
         }
+    }
+    public void flip(ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_ENUM direction){
+        mDeviceController.getFeatureARDrone3().sendAnimationsFlip(direction);
+
     }
 
     public void setYaw(byte yaw) {
@@ -458,6 +465,8 @@ public class BebopDrone {
         @Override
         public void onCommandReceived(ARDeviceController deviceController, ARCONTROLLER_DICTIONARY_KEY_ENUM commandKey, ARControllerDictionary elementDictionary) {
             // if event received is the battery update
+            boolean cont = true;
+            int count = 0;
             if ((commandKey == ARCONTROLLER_DICTIONARY_KEY_ENUM.ARCONTROLLER_DICTIONARY_KEY_COMMON_COMMONSTATE_BATTERYSTATECHANGED) && (elementDictionary != null)) {
                 ARControllerArgumentDictionary<Object> args = elementDictionary.get(ARControllerDictionary.ARCONTROLLER_DICTIONARY_SINGLE_KEY);
                 if (args != null) {
@@ -471,6 +480,7 @@ public class BebopDrone {
                 }
             }
             // if event received is the flying state update
+
             else if ((commandKey == ARCONTROLLER_DICTIONARY_KEY_ENUM.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED) && (elementDictionary != null)) {
                 ARControllerArgumentDictionary<Object> args = elementDictionary.get(ARControllerDictionary.ARCONTROLLER_DICTIONARY_SINGLE_KEY);
                 if (args != null) {
@@ -483,9 +493,38 @@ public class BebopDrone {
                             notifyPilotingStateChanged(state);
                         }
                     });
+                    switch (state) {
+                        case ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_LANDED:
+
+                            break;
+                        case ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_FLYING:
+                            count++;
+                            if (count > 10) {
+                                //mDeviceController.getFeatureARDrone3().sendPilotingLanding();
+                                break;
+                            }
+                            break;
+                        case ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_HOVERING:
+                            mDeviceController.getFeatureARDrone3().setPilotingPCMDPitch((byte) 50);
+                            break;
+                        //mBebopDrone.setPitch((byte)75);
+
+                        default:
+                            break;
+                    }
+
                 }
             }
             // if event received is the picture notification
+            else if ((commandKey == ARCONTROLLER_DICTIONARY_KEY_ENUM.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED) && (elementDictionary != null)){
+                ARControllerArgumentDictionary<Object> args = elementDictionary.get(ARControllerDictionary.ARCONTROLLER_DICTIONARY_SINGLE_KEY);
+                if (args != null) {
+                    latitude = (double)args.get(ARFeatureARDrone3.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED_LATITUDE);
+                    longitude = (double)args.get(ARFeatureARDrone3.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED_LONGITUDE);
+                    altitude = (double)args.get(ARFeatureARDrone3.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED_ALTITUDE);
+                    if (altitude>600.0) deviceController.getFeatureARDrone3().sendPilotingLanding();
+                }
+            }
             else if ((commandKey == ARCONTROLLER_DICTIONARY_KEY_ENUM.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_MEDIARECORDEVENT_PICTUREEVENTCHANGED) && (elementDictionary != null)){
                 ARControllerArgumentDictionary<Object> args = elementDictionary.get(ARControllerDictionary.ARCONTROLLER_DICTIONARY_SINGLE_KEY);
                 if (args != null) {

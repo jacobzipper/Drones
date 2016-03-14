@@ -11,6 +11,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_ENUM;
 import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_MEDIARECORDEVENT_PICTUREEVENTCHANGED_ERROR_ENUM;
 import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_ENUM;
 import com.parrot.arsdk.arcontroller.ARCONTROLLER_DEVICE_STATE_ENUM;
@@ -27,13 +28,13 @@ import com.parrot.arsdk.ardiscovery.ARDISCOVERY_PRODUCT_ENUM;
 import com.parrot.arsdk.ardiscovery.ARDiscoveryDevice;
 import com.parrot.arsdk.ardiscovery.ARDiscoveryDeviceService;
 import com.parrot.sdksample.R;
+import com.parrot.sdksample.drone.AutoDrone;
 import com.parrot.sdksample.drone.BebopDrone;
 import com.parrot.sdksample.view.BebopVideoView;
 
 public class autoRun1 extends AppCompatActivity  {
     private static final String TAG = "autoRun1";
-    private BebopDrone mBebopDrone;
-    private ARDeviceController deviceController;
+    private AutoDrone mBebopDrone;
     private ProgressDialog mConnectionProgressDialog;
     private ProgressDialog mDownloadProgressDialog;
 
@@ -59,7 +60,7 @@ public class autoRun1 extends AppCompatActivity  {
 
         Intent intent = getIntent();
         ARDiscoveryDeviceService service = intent.getParcelableExtra(DeviceListActivity.EXTRA_DEVICE_SERVICE);
-        mBebopDrone = new BebopDrone(this, service);
+        mBebopDrone = new AutoDrone(this, service);
         mBebopDrone.addListener(mBebopListener);
 
     }
@@ -103,6 +104,7 @@ public class autoRun1 extends AppCompatActivity  {
     private void initIHM() {
 
         mVideoView = (BebopVideoView) findViewById(R.id.videoView);
+
         findViewById(R.id.emergency).setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 mBebopDrone.emergency();
@@ -112,28 +114,7 @@ public class autoRun1 extends AppCompatActivity  {
         // Auto Starts here
         findViewById(R.id.autoButton).setOnClickListener(new View.OnClickListener(){
             public void onClick(View v) {
-                boolean cont = true;
-                try {
-                    deviceController = mBebopDrone.mDeviceController;
-                }catch(Exception e){e.printStackTrace();}
-                while(cont)
-                {
-                    switch (mBebopDrone.getFlyingState()) {
-                        case ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_LANDED:
-                            deviceController.getFeatureARDrone3().sendPilotingTakeOff();
-                            break;
-                        case ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_FLYING:
-                            break;
-                        case ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_HOVERING:
-                            //mBebopDrone.setPitch((byte)75);
-                            deviceController.getFeatureARDrone3().sendPilotingMoveBy((float) 2.0, (float) 0.0, (float) 0.0, (float) 0.0);
-                            cont = false;
-                            break;
-                        default:
-                            break;
-                    }
-                }
-                mBebopDrone.land();
+                mBebopDrone.flip(ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_ENUM.ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_FRONT);
 
             }
 
@@ -384,7 +365,7 @@ public class autoRun1 extends AppCompatActivity  {
         mBatteryLabel = (TextView) findViewById(R.id.batteryLabel);
     }
 
-    private final BebopDrone.Listener mBebopListener = new BebopDrone.Listener() {
+    private final AutoDrone.Listener mBebopListener = new AutoDrone.Listener() {
         @Override
         public void onDroneConnectionChanged(ARCONTROLLER_DEVICE_STATE_ENUM state) {
             switch (state)

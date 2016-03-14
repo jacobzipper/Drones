@@ -173,7 +173,7 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="START AUTONOMOUS"
+        android:text="FLIP FORWARD"
         android:id="@+id/autoButton"
         android:layout_below="@+id/gazDownBt"
         android:layout_centerHorizontal="true" />
