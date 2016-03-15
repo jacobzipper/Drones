@@ -116,9 +116,15 @@ public class autoRun1 extends AppCompatActivity  {
             public void onClick(View v) {
                 mBebopDrone.takeOff();
                 //mBebopDrone.flip(ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_ENUM.ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_FRONT);
-                mBebopDrone.setpositionHere((byte) 1, (byte) 10,(byte) 0,(byte) 0,(byte) 0, 2);
-
-
+                new Thread() {
+                    public void run() {
+                        mBebopDrone.setpositionHere((byte) 1, (byte) 0, (byte) 10, (byte) 0, (byte) 0, 2);
+                        try {
+                            Thread.sleep(2000);
+                        } catch(Exception e) {e.printStackTrace();}
+                        mBebopDrone.setpositionHere((byte)0, (byte)0,(byte)0, (byte)0,(byte)0,0);
+                    }
+                }.start();
             }
         });
 

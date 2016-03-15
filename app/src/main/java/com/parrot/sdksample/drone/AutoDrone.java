@@ -1,9 +1,11 @@
 package com.parrot.sdksample.drone;
 
 import android.content.Context;
+import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.util.Log;
+import android.view.View;
 
 import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_ENUM;
 import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_MEDIARECORDEVENT_PICTUREEVENTCHANGED_ERROR_ENUM;
@@ -31,6 +33,8 @@ import com.parrot.arsdk.ardiscovery.ARDiscoveryService;
 import com.parrot.arsdk.arutils.ARUtilsException;
 import com.parrot.arsdk.arutils.ARUtilsFtpConnection;
 import com.parrot.arsdk.arutils.ARUtilsManager;
+import com.parrot.sdksample.R;
+import com.parrot.sdksample.activity.autoRun1;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -288,8 +292,7 @@ public class AutoDrone {
     public void setpositionHere(byte flag, byte x, byte y, byte z, byte g, int time)
     {
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))&& mFlyingState.equals(ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_ENUM.ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_HOVERING)) {
-            mDeviceController.getFeatureARDrone3().setPilotingPCMD((byte) flag,(byte) x,(byte) y,(byte) z, (byte) g, time);
-
+            mDeviceController.getFeatureARDrone3().setPilotingPCMD(flag, x, y, z, g, time);
         }
     }
     /**
