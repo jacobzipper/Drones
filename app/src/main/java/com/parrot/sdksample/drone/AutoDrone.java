@@ -119,6 +119,7 @@ public class AutoDrone {
     public double altitude;
     public double longitude;
     public double latitude;
+    private AutoDrone drone = this;
     public AutoDrone(Context context, @NonNull ARDiscoveryDeviceService deviceService) {
 
         mListeners = new ArrayList<>();
@@ -284,7 +285,13 @@ public class AutoDrone {
             mDeviceController.getFeatureARDrone3().setPilotingPCMDGaz(gaz);
         }
     }
+    public void setpositionHere(byte flag, byte x, byte y, byte z, byte g, int time)
+    {
+        if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))&& mFlyingState.equals(ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_ENUM.ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_HOVERING)) {
+            mDeviceController.getFeatureARDrone3().setPilotingPCMD((byte) flag,(byte) x,(byte) y,(byte) z, (byte) g, time);
 
+        }
+    }
     /**
      * Take in account or not the pitch and roll values
      * @param flag 1 if the pitch and roll values should be used, 0 otherwise
@@ -498,17 +505,12 @@ public class AutoDrone {
 
                             break;
                         case ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_FLYING:
-                            count++;
-                            if (count > 10) {
-                                //mDeviceController.getFeatureARDrone3().sendPilotingLanding();
-                                break;
-                            }
+
                             break;
                         case ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_HOVERING:
-                            mDeviceController.getFeatureARDrone3().setPilotingPCMDPitch((byte) 50);
+                            //mDeviceController.getFeatureARDrone3().setPilotingPCMDPitch((byte) 50);
                             break;
                         //mBebopDrone.setPitch((byte)75);
-
                         default:
                             break;
                     }

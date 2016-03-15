@@ -43,7 +43,7 @@ public class autoRun1 extends AppCompatActivity  {
     private TextView mBatteryLabel;
     private Button mTakeOffLandBt;
     private Button mDownloadBt;
-
+    private ARDiscoveryDevice discoveryDevice;
     private int mNbMaxDownload;
     private int mCurrentDownloadIndex;
 
@@ -114,10 +114,12 @@ public class autoRun1 extends AppCompatActivity  {
         // Auto Starts here
         findViewById(R.id.autoButton).setOnClickListener(new View.OnClickListener(){
             public void onClick(View v) {
-                mBebopDrone.flip(ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_ENUM.ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_FRONT);
+                mBebopDrone.takeOff();
+                //mBebopDrone.flip(ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_ENUM.ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_FRONT);
+                mBebopDrone.setpositionHere((byte) 1, (byte) 10,(byte) 0,(byte) 0,(byte) 0, 2);
+
 
             }
-
         });
 
         findViewById(R.id.eLand).setOnClickListener(new View.OnClickListener(){
