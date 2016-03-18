@@ -240,7 +240,7 @@ public class BebopDrone {
 
     public void takePicture() {
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))) {
-            mDeviceController.getFeatureARDrone3().sendMediaRecordPictureV2();
+            mDeviceController.getFeatureARDrone3().sendMediaRecordPicture((byte)0);
         }
     }
 

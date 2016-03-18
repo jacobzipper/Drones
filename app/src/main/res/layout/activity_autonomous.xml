@@ -185,4 +185,14 @@
         android:id="@+id/eLand"
         android:layout_below="@+id/autoButton"
         android:layout_centerHorizontal="true" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:text="thread"
+        android:id="@+id/threadView"
+        android:layout_below="@+id/emergency"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true" />
 </RelativeLayout>

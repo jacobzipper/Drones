@@ -1,11 +1,21 @@
 package com.parrot.sdksample.drone;
 
+import android.app.Activity;
 import android.content.Context;
+import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
+import android.os.HandlerThread;
+import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 
 import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_ENUM;
 import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_MEDIARECORDEVENT_PICTUREEVENTCHANGED_ERROR_ENUM;
@@ -23,6 +33,11 @@ import com.parrot.arsdk.arcontroller.ARDeviceControllerStreamListener;
 import com.parrot.arsdk.arcontroller.ARFeatureARDrone3;
 import com.parrot.arsdk.arcontroller.ARFeatureCommon;
 import com.parrot.arsdk.arcontroller.ARFrame;
+import com.parrot.arsdk.ardatatransfer.ARDATATRANSFER_ERROR_ENUM;
+import com.parrot.arsdk.ardatatransfer.ARDataTransferException;
+import com.parrot.arsdk.ardatatransfer.ARDataTransferManager;
+import com.parrot.arsdk.ardatatransfer.ARDataTransferMedia;
+import com.parrot.arsdk.ardatatransfer.ARDataTransferMediasDownloader;
 import com.parrot.arsdk.ardiscovery.ARDISCOVERY_PRODUCT_ENUM;
 import com.parrot.arsdk.ardiscovery.ARDISCOVERY_PRODUCT_FAMILY_ENUM;
 import com.parrot.arsdk.ardiscovery.ARDiscoveryDevice;
@@ -30,6 +45,7 @@ import com.parrot.arsdk.ardiscovery.ARDiscoveryDeviceNetService;
 import com.parrot.arsdk.ardiscovery.ARDiscoveryDeviceService;
 import com.parrot.arsdk.ardiscovery.ARDiscoveryException;
 import com.parrot.arsdk.ardiscovery.ARDiscoveryService;
+import com.parrot.arsdk.armedia.ARMediaObject;
 import com.parrot.arsdk.arutils.ARUtilsException;
 import com.parrot.arsdk.arutils.ARUtilsFtpConnection;
 import com.parrot.arsdk.arutils.ARUtilsManager;
@@ -48,6 +64,7 @@ public class AutoDrone {
         /**
          * Called when the connection to the drone changes
          * Called in the main thread
+         *
          * @param state the state of the drone
          */
         void onDroneConnectionChanged(ARCONTROLLER_DEVICE_STATE_ENUM state);
@@ -55,6 +72,7 @@ public class AutoDrone {
         /**
          * Called when the battery charge changes
          * Called in the main thread
+         *
          * @param batteryPercentage the battery remaining (in percent)
          */
         void onBatteryChargeChanged(int batteryPercentage);
@@ -62,6 +80,7 @@ public class AutoDrone {
         /**
          * Called when the piloting state changes
          * Called in the main thread
+         *
          * @param state the piloting state of the drone
          */
         void onPilotingStateChanged(ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_ENUM state);
@@ -69,6 +88,7 @@ public class AutoDrone {
         /**
          * Called when a picture is taken
          * Called on a separate thread
+         *
          * @param error ERROR_OK if picture has been taken, otherwise describe the error
          */
         void onPictureTaken(ARCOMMANDS_ARDRONE3_MEDIARECORDEVENT_PICTUREEVENTCHANGED_ERROR_ENUM error);
@@ -76,6 +96,7 @@ public class AutoDrone {
         /**
          * Called when the video decoder should be configured
          * Called on a separate thread
+         *
          * @param codec the codec to configure the decoder with
          */
         void configureDecoder(ARControllerCodec codec);
@@ -83,6 +104,7 @@ public class AutoDrone {
         /**
          * Called when a video frame has been received
          * Called on a separate thread
+         *
          * @param frame the video frame
          */
         void onFrameReceived(ARFrame frame);
@@ -90,6 +112,7 @@ public class AutoDrone {
         /**
          * Called before medias will be downloaded
          * Called in the main thread
+         *
          * @param nbMedias the number of medias that will be downloaded
          */
         void onMatchingMediasFound(int nbMedias);
@@ -97,14 +120,16 @@ public class AutoDrone {
         /**
          * Called each time the progress of a download changes
          * Called in the main thread
+         *
          * @param mediaName the name of the media
-         * @param progress the progress of its download (from 0 to 100)
+         * @param progress  the progress of its download (from 0 to 100)
          */
         void onDownloadProgressed(String mediaName, int progress);
 
         /**
          * Called when a media download has ended
          * Called in the main thread
+         *
          * @param mediaName the name of the media
          */
         void onDownloadComplete(String mediaName);
@@ -123,7 +148,23 @@ public class AutoDrone {
     public double altitude;
     public double longitude;
     public double latitude;
+    public autoRun1 app;
     private AutoDrone drone = this;
+    public Button eButton;
+    private static final String MEDIA_FOLDER = "internal_000";
+
+    private AsyncTask<Void, Float, ArrayList<ARMediaObject>> getMediaAsyncTask;
+    private AsyncTask<Void, Float, Void> getThumbnailAsyncTask;
+    private Handler mFileTransferThreadHandler;
+    private HandlerThread mFileTransferThread;
+    private boolean isRunning = false;
+    private boolean isDownloading = false;
+    private final Object lock = new Object();
+
+    private ARDataTransferManager dataTransferManager;
+    private ARUtilsManager ftpListManager;
+    private ARUtilsManager ftpQueueManager;
+
     public AutoDrone(Context context, @NonNull ARDiscoveryDeviceService deviceService) {
 
         mListeners = new ArrayList<>();
@@ -145,9 +186,8 @@ public class AutoDrone {
                 mDeviceController = createDeviceController(discoveryDevice);
             }
 
-            try
-            {
-                String productIP = ((ARDiscoveryDeviceNetService)(deviceService.getDevice())).getIp();
+            try {
+                String productIP = ((ARDiscoveryDeviceNetService) (deviceService.getDevice())).getIp();
 
                 ARUtilsManager ftpListManager = new ARUtilsManager();
                 ARUtilsManager ftpQueueManager = new ARUtilsManager();
@@ -157,9 +197,7 @@ public class AutoDrone {
 
                 mSDCardModule = new SDCardModule(ftpListManager, ftpQueueManager);
                 mSDCardModule.addListener(mSDCardModuleListener);
-            }
-            catch (ARUtilsException e)
-            {
+            } catch (ARUtilsException e) {
                 Log.e(TAG, "Exception", e);
             }
 
@@ -180,9 +218,10 @@ public class AutoDrone {
 
     /**
      * Connect to the drone
+     *
      * @return true if operation was successful.
-     *              Returning true doesn't mean that device is connected.
-     *              You can be informed of the actual connection through {@link Listener#onDroneConnectionChanged}
+     * Returning true doesn't mean that device is connected.
+     * You can be informed of the actual connection through {@link Listener#onDroneConnectionChanged}
      */
     public boolean connect() {
         boolean success = false;
@@ -197,10 +236,15 @@ public class AutoDrone {
 
     /**
      * Disconnect from the drone
+     *
      * @return true if operation was successful.
-     *              Returning true doesn't mean that device is disconnected.
-     *              You can be informed of the actual disconnection through {@link Listener#onDroneConnectionChanged}
+     * Returning true doesn't mean that device is disconnected.
+     * You can be informed of the actual disconnection through {@link Listener#onDroneConnectionChanged}
      */
+    public void setApp(autoRun1 a) {
+        app = a;
+    }
+
     public boolean disconnect() {
         boolean success = false;
         if ((mDeviceController != null) && (ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING.equals(mState))) {
@@ -214,6 +258,7 @@ public class AutoDrone {
 
     /**
      * Get the current connection state
+     *
      * @return the connection state of the drone
      */
     public ARCONTROLLER_DEVICE_STATE_ENUM getConnectionState() {
@@ -222,6 +267,7 @@ public class AutoDrone {
 
     /**
      * Get the current flying state
+     *
      * @return the flying state
      */
     public ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_ENUM getFlyingState() {
@@ -230,7 +276,32 @@ public class AutoDrone {
 
     public void takeOff() {
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))) {
-            mDeviceController.getFeatureARDrone3().sendPilotingTakeOff();
+            Thread t = new Thread() {
+                @Override
+            public void run() {
+                    mDeviceController.getFeatureARDrone3().sendPilotingTakeOff();
+                    try {
+                        this.sleep(3000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+                }
+            };
+            Thread r = new Thread(){
+                @Override
+            public void run() {
+                    eButton.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            drone.emergency();
+                        }
+                    });
+                }
+            };
+            t.start();
+            r.start();
+
         }
     }
 
@@ -246,15 +317,39 @@ public class AutoDrone {
         }
     }
 
-    public void takePicture() {
+    public Bitmap takePicture() {
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))) {
-            mDeviceController.getFeatureARDrone3().sendMediaRecordPictureV2();
+            mDeviceController.getFeatureARDrone3().sendMediaRecordPicture((byte) 0);
         }
+        drone.getLastFlightMedias();
+        ArrayList<String> currentPhotos = getImagesPath(app);
+        return BitmapFactory.decodeFile(currentPhotos.get(0)).copy(Bitmap.Config.ARGB_8888, true);
+    }
+
+    private static ArrayList<String> getImagesPath(Activity activity) {
+        Uri uri;
+        ArrayList<String> listOfAllImages = new ArrayList<String>();
+        Cursor cursor;
+        int column_index_data;
+        String PathOfImage;
+        uri = android.provider.MediaStore.Images.Media.INTERNAL_CONTENT_URI;
+
+        String[] projection = {MediaStore.MediaColumns.DATA};
+
+        cursor = activity.getContentResolver().query(uri, projection, null, null, null);
+
+        column_index_data = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA);
+        while (cursor.moveToNext()) {
+            PathOfImage = cursor.getString(column_index_data);
+            listOfAllImages.add(PathOfImage);
+        }
+        return listOfAllImages;
     }
 
     /**
      * Set the forward/backward angle of the drone
      * Note that {@link AutoDrone#setFlag(byte)} should be set to 1 in order to take in account the pitch value
+     *
      * @param pitch value in percentage from -100 to 100
      */
     public void setPitch(byte pitch) {
@@ -266,6 +361,7 @@ public class AutoDrone {
     /**
      * Set the side angle of the drone
      * Note that {@link AutoDrone#setFlag(byte)} should be set to 1 in order to take in account the roll value
+     *
      * @param roll value in percentage from -100 to 100
      */
     public void setRoll(byte roll) {
@@ -273,7 +369,8 @@ public class AutoDrone {
             mDeviceController.getFeatureARDrone3().setPilotingPCMDRoll(roll);
         }
     }
-    public void flip(ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_ENUM direction){
+
+    public void flip(ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_ENUM direction) {
         mDeviceController.getFeatureARDrone3().sendAnimationsFlip(direction);
 
     }
@@ -289,14 +386,40 @@ public class AutoDrone {
             mDeviceController.getFeatureARDrone3().setPilotingPCMDGaz(gaz);
         }
     }
-    public void setpositionHere(byte flag, byte x, byte y, byte z, byte g, int time)
-    {
-        if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))&& mFlyingState.equals(ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_ENUM.ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_HOVERING)) {
-            mDeviceController.getFeatureARDrone3().setPilotingPCMD(flag, x, y, z, g, time);
+
+    public void setpositionHere(final byte flag, final byte x, final byte y, final byte z, final byte g, final int time) {
+        if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING)) && mFlyingState.equals(ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_ENUM.ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_HOVERING)) {
+            //Bitmap photo = takePicture();
+            Thread r = new Thread() {
+                @Override
+                public void run() {
+                    mDeviceController.getFeatureARDrone3().setPilotingPCMD(flag, x, y, z, g, time);
+                    try {
+                        this.sleep(1000 * time);
+                    } catch (Exception e) {
+                    }
+                    mDeviceController.getFeatureARDrone3().setPilotingPCMDFlag((byte) 0);
+                }
+
+            };
+            Thread t = new Thread() {
+                @Override
+                public void run() {
+                    eButton.setOnClickListener(new View.OnClickListener() {
+                        public void onClick(View v) {
+                            mDeviceController.getFeatureARDrone3().sendPilotingEmergency();
+                        }
+                    });
+                }
+            };
+            t.start();
+            r.start();
         }
     }
+
     /**
      * Take in account or not the pitch and roll values
+     *
      * @param flag 1 if the pitch and roll values should be used, 0 otherwise
      */
     public void setFlag(byte flag) {
@@ -521,19 +644,19 @@ public class AutoDrone {
                 }
             }
             // if event received is the picture notification
-            else if ((commandKey == ARCONTROLLER_DICTIONARY_KEY_ENUM.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED) && (elementDictionary != null)){
+            else if ((commandKey == ARCONTROLLER_DICTIONARY_KEY_ENUM.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED) && (elementDictionary != null)) {
                 ARControllerArgumentDictionary<Object> args = elementDictionary.get(ARControllerDictionary.ARCONTROLLER_DICTIONARY_SINGLE_KEY);
                 if (args != null) {
-                    latitude = (double)args.get(ARFeatureARDrone3.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED_LATITUDE);
-                    longitude = (double)args.get(ARFeatureARDrone3.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED_LONGITUDE);
-                    altitude = (double)args.get(ARFeatureARDrone3.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED_ALTITUDE);
-                    if (altitude>600.0) deviceController.getFeatureARDrone3().sendPilotingLanding();
+                    latitude = (double) args.get(ARFeatureARDrone3.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED_LATITUDE);
+                    longitude = (double) args.get(ARFeatureARDrone3.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED_LONGITUDE);
+                    altitude = (double) args.get(ARFeatureARDrone3.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED_ALTITUDE);
+                    if (altitude > 600.0)
+                        deviceController.getFeatureARDrone3().sendPilotingLanding();
                 }
-            }
-            else if ((commandKey == ARCONTROLLER_DICTIONARY_KEY_ENUM.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_MEDIARECORDEVENT_PICTUREEVENTCHANGED) && (elementDictionary != null)){
+            } else if ((commandKey == ARCONTROLLER_DICTIONARY_KEY_ENUM.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_MEDIARECORDEVENT_PICTUREEVENTCHANGED) && (elementDictionary != null)) {
                 ARControllerArgumentDictionary<Object> args = elementDictionary.get(ARControllerDictionary.ARCONTROLLER_DICTIONARY_SINGLE_KEY);
                 if (args != null) {
-                    final ARCOMMANDS_ARDRONE3_MEDIARECORDEVENT_PICTUREEVENTCHANGED_ERROR_ENUM error = ARCOMMANDS_ARDRONE3_MEDIARECORDEVENT_PICTUREEVENTCHANGED_ERROR_ENUM.getFromValue((Integer)args.get(ARFeatureARDrone3.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_MEDIARECORDEVENT_PICTUREEVENTCHANGED_ERROR));
+                    final ARCOMMANDS_ARDRONE3_MEDIARECORDEVENT_PICTUREEVENTCHANGED_ERROR_ENUM error = ARCOMMANDS_ARDRONE3_MEDIARECORDEVENT_PICTUREEVENTCHANGED_ERROR_ENUM.getFromValue((Integer) args.get(ARFeatureARDrone3.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_MEDIARECORDEVENT_PICTUREEVENTCHANGED_ERROR));
                     mHandler.post(new Runnable() {
                         @Override
                         public void run() {
@@ -543,7 +666,7 @@ public class AutoDrone {
                 }
             }
             // if event received is the run id
-            else if ((commandKey == ARCONTROLLER_DICTIONARY_KEY_ENUM.ARCONTROLLER_DICTIONARY_KEY_COMMON_RUNSTATE_RUNIDCHANGED) && (elementDictionary != null)){
+            else if ((commandKey == ARCONTROLLER_DICTIONARY_KEY_ENUM.ARCONTROLLER_DICTIONARY_KEY_COMMON_RUNSTATE_RUNIDCHANGED) && (elementDictionary != null)) {
                 ARControllerArgumentDictionary<Object> args = elementDictionary.get(ARControllerDictionary.ARCONTROLLER_DICTIONARY_SINGLE_KEY);
                 if (args != null) {
                     final String runID = (String) args.get(ARFeatureCommon.ARCONTROLLER_DICTIONARY_KEY_COMMON_RUNSTATE_RUNIDCHANGED_RUNID);
@@ -572,6 +695,8 @@ public class AutoDrone {
         }
 
         @Override
-        public void onFrameTimeout(ARDeviceController deviceController) {}
+        public void onFrameTimeout(ARDeviceController deviceController) {
+        }
+
     };
 }

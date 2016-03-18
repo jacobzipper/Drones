@@ -46,22 +46,26 @@ public class autoRun1 extends AppCompatActivity  {
     private ARDiscoveryDevice discoveryDevice;
     private int mNbMaxDownload;
     private int mCurrentDownloadIndex;
-
+    TextView textView;
     double latitude;
     double longitude;
     double altitude;
+    public Button emergencyButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_autonomous);
+        textView = (TextView)findViewById(R.id.threadView);
+        emergencyButton = (Button) findViewById(R.id.emergency);
 
-        initIHM();
 
         Intent intent = getIntent();
+
         ARDiscoveryDeviceService service = intent.getParcelableExtra(DeviceListActivity.EXTRA_DEVICE_SERVICE);
         mBebopDrone = new AutoDrone(this, service);
         mBebopDrone.addListener(mBebopListener);
+        initIHM();
 
     }
 
@@ -104,8 +108,8 @@ public class autoRun1 extends AppCompatActivity  {
     private void initIHM() {
 
         mVideoView = (BebopVideoView) findViewById(R.id.videoView);
-
-        findViewById(R.id.emergency).setOnClickListener(new View.OnClickListener() {
+        mBebopDrone.setApp(this);
+        emergencyButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 mBebopDrone.emergency();
             }
@@ -114,17 +118,16 @@ public class autoRun1 extends AppCompatActivity  {
         // Auto Starts here
         findViewById(R.id.autoButton).setOnClickListener(new View.OnClickListener(){
             public void onClick(View v) {
+
                 mBebopDrone.takeOff();
+                mBebopDrone.eButton = emergencyButton;
+
                 //mBebopDrone.flip(ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_ENUM.ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_FRONT);
-                new Thread() {
-                    public void run() {
-                        mBebopDrone.setpositionHere((byte) 1, (byte) 0, (byte) 10, (byte) 0, (byte) 0, 2);
-                        try {
-                            Thread.sleep(2000);
-                        } catch(Exception e) {e.printStackTrace();}
-                        mBebopDrone.setpositionHere((byte)0, (byte)0,(byte)0, (byte)0,(byte)0,0);
-                    }
-                }.start();
+                mBebopDrone.setpositionHere((byte) 1, (byte) 0, (byte) 10, (byte) 0, (byte) 0, 3);
+
+                mBebopDrone.setpositionHere((byte) 1, (byte) -10, (byte) 0, (byte) 0, (byte) 0, 3);
+
+                mBebopDrone.setpositionHere((byte) 1, (byte) 0, (byte) 10, (byte) 0, (byte) 0, 3);
             }
         });
 
