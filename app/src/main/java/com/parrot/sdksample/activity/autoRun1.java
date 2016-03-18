@@ -114,20 +114,45 @@ public class autoRun1 extends AppCompatActivity  {
                 mBebopDrone.emergency();
             }
         });
-
+        mBebopDrone.eButton = emergencyButton;
         // Auto Starts here
         findViewById(R.id.autoButton).setOnClickListener(new View.OnClickListener(){
-            public void onClick(View v) {
 
-                mBebopDrone.takeOff();
-                mBebopDrone.eButton = emergencyButton;
+            public void onClick(View v) {
+                Thread t = new Thread() {
+                    @Override
+                public void run() {
+                        mBebopDrone.takeOff();
+
+                        try {
+                            this.sleep(5000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        mBebopDrone.moveForwardOneSpace();
+                        mBebopDrone.turnLeft();
+                        mBebopDrone.moveForwardOneSpace();
+                        mBebopDrone.turnRight();
+                        mBebopDrone.moveForwardOneSpace();
+                        mBebopDrone.land();
+                    }
+                };
+                Thread r = new Thread() {
+                    @Override
+                public void run() {
+                        mBebopDrone.eButton.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                mBebopDrone.emergency();
+                            }
+                        });
+                    }
+                };
+                t.start();
+                r.start();
 
                 //mBebopDrone.flip(ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_ENUM.ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_FRONT);
-                mBebopDrone.setpositionHere((byte) 1, (byte) 0, (byte) 10, (byte) 0, (byte) 0, 3);
 
-                mBebopDrone.setpositionHere((byte) 1, (byte) -10, (byte) 0, (byte) 0, (byte) 0, 3);
-
-                mBebopDrone.setpositionHere((byte) 1, (byte) 0, (byte) 10, (byte) 0, (byte) 0, 3);
             }
         });
 

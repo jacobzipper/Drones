@@ -51,6 +51,7 @@ import com.parrot.arsdk.arutils.ARUtilsFtpConnection;
 import com.parrot.arsdk.arutils.ARUtilsManager;
 import com.parrot.sdksample.R;
 import com.parrot.sdksample.activity.autoRun1;
+import com.parrot.sdksample.enums.Direction;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -152,6 +153,9 @@ public class AutoDrone {
     private AutoDrone drone = this;
     public Button eButton;
     private static final String MEDIA_FOLDER = "internal_000";
+    public Direction curDirection;
+    public Direction[][] coordinateSystem = new Direction[3][3];
+    public int[] currentCoordinates = {2,2};
 
     private AsyncTask<Void, Float, ArrayList<ARMediaObject>> getMediaAsyncTask;
     private AsyncTask<Void, Float, Void> getThumbnailAsyncTask;
@@ -166,7 +170,13 @@ public class AutoDrone {
     private ARUtilsManager ftpQueueManager;
 
     public AutoDrone(Context context, @NonNull ARDiscoveryDeviceService deviceService) {
-
+        for(int i = 0; i < coordinateSystem.length; i++) {
+            for(int j = 0; j < coordinateSystem[i].length; j++) {
+                coordinateSystem[i][j] = null;
+            }
+        }
+        curDirection = Direction.NORTH;
+        coordinateSystem[2][2] = Direction.NORTH;
         mListeners = new ArrayList<>();
 
         // needed because some callbacks will be called on the main thread
@@ -276,32 +286,7 @@ public class AutoDrone {
 
     public void takeOff() {
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))) {
-            Thread t = new Thread() {
-                @Override
-            public void run() {
-                    mDeviceController.getFeatureARDrone3().sendPilotingTakeOff();
-                    try {
-                        this.sleep(3000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-
-                }
-            };
-            Thread r = new Thread(){
-                @Override
-            public void run() {
-                    eButton.setOnClickListener(new View.OnClickListener() {
-                        @Override
-                        public void onClick(View v) {
-                            drone.emergency();
-                        }
-                    });
-                }
-            };
-            t.start();
-            r.start();
-
+            mDeviceController.getFeatureARDrone3().sendPilotingTakeOff();
         }
     }
 
@@ -389,13 +374,45 @@ public class AutoDrone {
 
     public void setpositionHere(final byte flag, final byte x, final byte y, final byte z, final byte g, final int time) {
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING)) && mFlyingState.equals(ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_ENUM.ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_HOVERING)) {
+            if(z < 0) {
+                if(curDirection != Direction.NORTH) curDirection = Direction.values()[(curDirection.ordinal()-1)];
+                else curDirection = Direction.WEST;
+                coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = curDirection;
+            }
+            else if(z < 0) {
+                if(curDirection != Direction.WEST) curDirection = Direction.values()[(curDirection.ordinal()+1)];
+                else curDirection = Direction.NORTH;
+                coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = curDirection;
+            }
+            if(y > 0) {
+                if(curDirection == Direction.NORTH) {
+                    coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = null;
+                    currentCoordinates[0]--;
+                    coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = curDirection;
+                }
+                else if(curDirection == Direction.EAST) {
+                    coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = null;
+                    currentCoordinates[1]++;
+                    coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = curDirection;
+                }
+                else if(curDirection == Direction.WEST) {
+                    coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = null;
+                    currentCoordinates[1]--;
+                    coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = curDirection;
+                }
+                else if(curDirection == Direction.SOUTH) {
+                    coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = null;
+                    currentCoordinates[0]++;
+                    coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = curDirection;
+                }
+            }
             //Bitmap photo = takePicture();
             Thread r = new Thread() {
                 @Override
                 public void run() {
                     mDeviceController.getFeatureARDrone3().setPilotingPCMD(flag, x, y, z, g, time);
                     try {
-                        this.sleep(1000 * time);
+                        this.sleep(time);
                     } catch (Exception e) {
                     }
                     mDeviceController.getFeatureARDrone3().setPilotingPCMDFlag((byte) 0);
@@ -414,14 +431,38 @@ public class AutoDrone {
             };
             t.start();
             r.start();
+
         }
     }
 
     /**
      * Take in account or not the pitch and roll values
      *
-     * @param flag 1 if the pitch and roll values should be used, 0 otherwise
      */
+    public void moveForwardOneSpace() {
+        drone.setpositionHere((byte) 1, (byte) 0, (byte) 10, (byte) 0, (byte) 0, 2750);
+        try {
+            Thread.sleep(3500);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+    public void turnLeft() {
+        drone.setpositionHere((byte) 1, (byte) 0, (byte) 0, (byte) -25, (byte) 0,2750);
+        try {
+            Thread.sleep(4250);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+    public void turnRight() {
+        drone.setpositionHere((byte) 1, (byte) 0, (byte) 0, (byte) 25, (byte) 0,2750);
+        try {
+            Thread.sleep(4250);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
     public void setFlag(byte flag) {
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))) {
             mDeviceController.getFeatureARDrone3().setPilotingPCMDFlag(flag);
