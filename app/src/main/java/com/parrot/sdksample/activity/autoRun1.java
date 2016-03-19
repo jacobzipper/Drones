@@ -30,6 +30,7 @@ import com.parrot.arsdk.ardiscovery.ARDiscoveryDeviceService;
 import com.parrot.sdksample.R;
 import com.parrot.sdksample.drone.AutoDrone;
 import com.parrot.sdksample.drone.BebopDrone;
+import com.parrot.sdksample.enums.Direction;
 import com.parrot.sdksample.view.BebopVideoView;
 
 public class autoRun1 extends AppCompatActivity  {
@@ -46,17 +47,17 @@ public class autoRun1 extends AppCompatActivity  {
     private ARDiscoveryDevice discoveryDevice;
     private int mNbMaxDownload;
     private int mCurrentDownloadIndex;
-    TextView textView;
     double latitude;
     double longitude;
     double altitude;
     public Button emergencyButton;
+    TextView coords;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_autonomous);
-        textView = (TextView)findViewById(R.id.threadView);
+
         emergencyButton = (Button) findViewById(R.id.emergency);
 
 
@@ -65,7 +66,9 @@ public class autoRun1 extends AppCompatActivity  {
         ARDiscoveryDeviceService service = intent.getParcelableExtra(DeviceListActivity.EXTRA_DEVICE_SERVICE);
         mBebopDrone = new AutoDrone(this, service);
         mBebopDrone.addListener(mBebopListener);
+        coords = (TextView) findViewById(R.id.coordinates);
         initIHM();
+
 
     }
 
@@ -104,7 +107,12 @@ public class autoRun1 extends AppCompatActivity  {
             }
         }
     }
-
+    public void updateCoords() {
+        Direction d = mBebopDrone.curDirection;
+        int[] c = mBebopDrone.currentCoordinates;
+        String set = "Coordinates: (" + c[0] + ", " + c[1] + ")\nDirection: " + d.toString();
+        coords.setText(set);
+    }
     private void initIHM() {
 
         mVideoView = (BebopVideoView) findViewById(R.id.videoView);
@@ -116,6 +124,7 @@ public class autoRun1 extends AppCompatActivity  {
         });
         mBebopDrone.eButton = emergencyButton;
         // Auto Starts here
+
         findViewById(R.id.autoButton).setOnClickListener(new View.OnClickListener(){
 
             public void onClick(View v) {
@@ -123,18 +132,60 @@ public class autoRun1 extends AppCompatActivity  {
                     @Override
                 public void run() {
                         mBebopDrone.takeOff();
-
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                updateCoords();
+                            }
+                        });
                         try {
                             this.sleep(5000);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
                         mBebopDrone.moveForwardOneSpace();
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                updateCoords();
+                            }
+                        });
                         mBebopDrone.turnLeft();
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                updateCoords();
+                            }
+                        });
                         mBebopDrone.moveForwardOneSpace();
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                updateCoords();
+                            }
+                        });
                         mBebopDrone.turnRight();
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                updateCoords();
+                            }
+                        });
                         mBebopDrone.moveForwardOneSpace();
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                updateCoords();
+                            }
+                        });
                         mBebopDrone.land();
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                updateCoords();
+                            }
+                        });
+
                     }
                 };
                 Thread r = new Thread() {
@@ -146,6 +197,7 @@ public class autoRun1 extends AppCompatActivity  {
                                 mBebopDrone.emergency();
                             }
                         });
+
                     }
                 };
                 t.start();

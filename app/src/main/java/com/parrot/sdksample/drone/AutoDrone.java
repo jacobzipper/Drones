@@ -288,12 +288,15 @@ public class AutoDrone {
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))) {
             mDeviceController.getFeatureARDrone3().sendPilotingTakeOff();
         }
+        currentCoordinates[0] = 2;
+        currentCoordinates[1] = 2;
     }
 
     public void land() {
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))) {
             mDeviceController.getFeatureARDrone3().sendPilotingLanding();
         }
+
     }
 
     public void emergency() {
@@ -379,7 +382,7 @@ public class AutoDrone {
                 else curDirection = Direction.WEST;
                 coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = curDirection;
             }
-            else if(z < 0) {
+            else if(z > 0) {
                 if(curDirection != Direction.WEST) curDirection = Direction.values()[(curDirection.ordinal()+1)];
                 else curDirection = Direction.NORTH;
                 coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = curDirection;
@@ -440,7 +443,7 @@ public class AutoDrone {
      *
      */
     public void moveForwardOneSpace() {
-        drone.setpositionHere((byte) 1, (byte) 0, (byte) 10, (byte) 0, (byte) 0, 2750);
+        drone.setpositionHere((byte) 1, (byte) 0, (byte) 10, (byte) 0, (byte) 0, 2500);
         try {
             Thread.sleep(3500);
         } catch (InterruptedException e) {
@@ -448,7 +451,7 @@ public class AutoDrone {
         }
     }
     public void turnLeft() {
-        drone.setpositionHere((byte) 1, (byte) 0, (byte) 0, (byte) -25, (byte) 0,2750);
+        drone.setpositionHere((byte) 1, (byte) 0, (byte) 0, (byte) -25, (byte) 0,2950);
         try {
             Thread.sleep(4250);
         } catch (InterruptedException e) {
@@ -456,7 +459,7 @@ public class AutoDrone {
         }
     }
     public void turnRight() {
-        drone.setpositionHere((byte) 1, (byte) 0, (byte) 0, (byte) 25, (byte) 0,2750);
+        drone.setpositionHere((byte) 1, (byte) 0, (byte) 0, (byte) 25, (byte) 0,2950);
         try {
             Thread.sleep(4250);
         } catch (InterruptedException e) {
