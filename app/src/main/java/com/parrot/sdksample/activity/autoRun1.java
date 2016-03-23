@@ -235,11 +235,22 @@ public class autoRun1 extends AppCompatActivity  {
         findViewById(R.id.takePictureBt).setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 mBebopDrone.takePicture();
+                mDownloadProgressDialog = new ProgressDialog(autoRun1.this, R.style.AppCompatAlertDialogStyle);
+                mDownloadProgressDialog.setIndeterminate(true);
+                mDownloadProgressDialog.setMessage("Fetching medias");
+                mDownloadProgressDialog.setCancelable(false);
+                mDownloadProgressDialog.setButton(DialogInterface.BUTTON_NEGATIVE, "Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        mBebopDrone.cancelGetLastFlightMedias();
+                    }
+                });
+                mDownloadProgressDialog.show();
             }
         });
 
         mDownloadBt = (Button)findViewById(R.id.downloadBt);
-        mDownloadBt.setEnabled(false);
+        mDownloadBt.setEnabled(true);
         mDownloadBt.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 mBebopDrone.getLastFlightMedias();
@@ -527,7 +538,7 @@ public class autoRun1 extends AppCompatActivity  {
                 mDownloadProgressDialog.setIndeterminate(false);
                 mDownloadProgressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
                 mDownloadProgressDialog.setMessage("Downloading medias");
-                mDownloadProgressDialog.setMax(mNbMaxDownload * 100);
+                mDownloadProgressDialog.setMax(mNbMaxDownload * 3);
                 mDownloadProgressDialog.setSecondaryProgress(mCurrentDownloadIndex * 100);
                 mDownloadProgressDialog.setProgress(0);
                 mDownloadProgressDialog.setCancelable(false);

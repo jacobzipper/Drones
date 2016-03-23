@@ -53,6 +53,7 @@ import com.parrot.sdksample.R;
 import com.parrot.sdksample.activity.autoRun1;
 import com.parrot.sdksample.enums.Direction;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -305,33 +306,8 @@ public class AutoDrone {
         }
     }
 
-    public Bitmap takePicture() {
-        if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))) {
-            mDeviceController.getFeatureARDrone3().sendMediaRecordPicture((byte) 0);
-        }
-        drone.getLastFlightMedias();
-        ArrayList<String> currentPhotos = getImagesPath(app);
-        return BitmapFactory.decodeFile(currentPhotos.get(0)).copy(Bitmap.Config.ARGB_8888, true);
-    }
-
-    private static ArrayList<String> getImagesPath(Activity activity) {
-        Uri uri;
-        ArrayList<String> listOfAllImages = new ArrayList<String>();
-        Cursor cursor;
-        int column_index_data;
-        String PathOfImage;
-        uri = android.provider.MediaStore.Images.Media.INTERNAL_CONTENT_URI;
-
-        String[] projection = {MediaStore.MediaColumns.DATA};
-
-        cursor = activity.getContentResolver().query(uri, projection, null, null, null);
-
-        column_index_data = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA);
-        while (cursor.moveToNext()) {
-            PathOfImage = cursor.getString(column_index_data);
-            listOfAllImages.add(PathOfImage);
-        }
-        return listOfAllImages;
+    public void takePicture() {
+        mDeviceController.getFeatureARDrone3().sendMediaRecordPictureV2();
     }
 
     /**
@@ -409,7 +385,13 @@ public class AutoDrone {
                     coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = curDirection;
                 }
             }
-            //Bitmap photo = takePicture();
+            Bitmap photo = BitmapFactory.decodeFile("DCIM/Camera/A.jpg");
+            photo.setHasAlpha(true);
+            int[] argb = new int[photo.getHeight()* photo.getWidth()];
+            photo.getPixels(argb,0,photo.getWidth(),0,0,photo.getWidth(),photo.getHeight());
+            if(argb[(photo.getWidth()*photo.getHeight())/2] < 10) {
+                return;
+            }
             Thread r = new Thread() {
                 @Override
                 public void run() {
