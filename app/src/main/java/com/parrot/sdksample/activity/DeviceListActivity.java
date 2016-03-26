@@ -60,26 +60,7 @@ public class DeviceListActivity extends AppCompatActivity {
                     case ARDISCOVERY_PRODUCT_ARDRONE:
                     case ARDISCOVERY_PRODUCT_BEBOP_2:
                         intent = new Intent(DeviceListActivity.this, autoRun1.class);
-                        //intent = new Intent(DeviceListActivity.this, BebopActivity.class);
-
                         break;
-
-                    case ARDISCOVERY_PRODUCT_SKYCONTROLLER:
-                        intent = new Intent(DeviceListActivity.this, SkyControllerActivity.class);
-                        break;
-
-                    case ARDISCOVERY_PRODUCT_JS:
-                    case ARDISCOVERY_PRODUCT_JS_EVO_LIGHT:
-                    case ARDISCOVERY_PRODUCT_JS_EVO_RACE:
-                        intent = new Intent(DeviceListActivity.this, JSActivity.class);
-                        break;
-
-                    case ARDISCOVERY_PRODUCT_MINIDRONE:
-                    case ARDISCOVERY_PRODUCT_MINIDRONE_EVO_BRICK:
-                    case ARDISCOVERY_PRODUCT_MINIDRONE_EVO_LIGHT:
-                        intent = new Intent(DeviceListActivity.this, MiniDroneActivity.class);
-                        break;
-
                     default:
                         Log.e(TAG, "The type " + product + " is not supported by this sample");
                 }

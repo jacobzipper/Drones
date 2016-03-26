@@ -32,9 +32,6 @@ import com.parrot.arsdk.ardiscovery.ARDiscoveryDeviceNetService;
 import com.parrot.arsdk.ardiscovery.ARDiscoveryDeviceService;
 import com.parrot.arsdk.ardiscovery.ARDiscoveryException;
 import com.parrot.arsdk.ardiscovery.ARDiscoveryService;
-import com.parrot.arsdk.arutils.ARUtilsException;
-import com.parrot.arsdk.arutils.ARUtilsFtpConnection;
-import com.parrot.arsdk.arutils.ARUtilsManager;
 import com.parrot.sdksample.activity.autoRun1;
 import com.parrot.sdksample.enums.Direction;
 
@@ -350,11 +347,14 @@ public class AutoDrone {
      *
      * @return returns a boolean if the condition of it seeing a wall is met.
      */
-    public boolean analyzePicture() {
-        drone.takePicture();
+    public boolean analyzePicture()  {
         drone.getFirstPicture();
-        // Manipulating bitmap to get values that are easy to work with
-        curPhoto.setHasAlpha(true);
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        if(curPhoto==null) return false;
         int[][] argb = getPixels2D(curPhoto);
         int curPixel = argb[curPhoto.getHeight()][curPhoto.getWidth()];
         int blue = curPixel & 0x000000FF;
@@ -647,8 +647,6 @@ public class AutoDrone {
         @Override
         public void onCommandReceived(ARDeviceController deviceController, ARCONTROLLER_DICTIONARY_KEY_ENUM commandKey, ARControllerDictionary elementDictionary) {
             // if event received is the battery update
-            boolean cont = true;
-            int count = 0;
             if ((commandKey == ARCONTROLLER_DICTIONARY_KEY_ENUM.ARCONTROLLER_DICTIONARY_KEY_COMMON_COMMONSTATE_BATTERYSTATECHANGED) && (elementDictionary != null)) {
                 ARControllerArgumentDictionary<Object> args = elementDictionary.get(ARControllerDictionary.ARCONTROLLER_DICTIONARY_SINGLE_KEY);
                 if (args != null) {

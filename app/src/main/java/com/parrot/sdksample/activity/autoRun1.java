@@ -31,7 +31,6 @@ public class autoRun1 extends AppCompatActivity  {
     private BebopVideoView mVideoView;
     private TextView mBatteryLabel;
     private Button mTakeOffLandBt;
-    private Button mDownloadBt;
     public Button emergencyButton;
     public TextView coords;
 
@@ -129,12 +128,8 @@ public class autoRun1 extends AppCompatActivity  {
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
-                        if(mBebopDrone.analyzePicture()) {
-                            mBebopDrone.turnLeft();
-                        }
-                        else {
-                            mBebopDrone.moveForwardOneSpace();
-                        }
+                        mBebopDrone.moveForwardOneSpace();
+                        mBebopDrone.turnLeft();
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
@@ -162,7 +157,7 @@ public class autoRun1 extends AppCompatActivity  {
             }
         });
 
-        findViewById(R.id.eLand).setOnClickListener(new View.OnClickListener(){
+        findViewById(R.id.eLand).setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 mBebopDrone.land();
 
@@ -192,11 +187,10 @@ public class autoRun1 extends AppCompatActivity  {
             }
         });
 
-        mDownloadBt = (Button)findViewById(R.id.downloadBt);
-        mDownloadBt.setEnabled(true);
-        mDownloadBt.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
 
+        findViewById(R.id.downloadBt).setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                mBebopDrone.getFirstPicture();
             }
         });
 
@@ -424,13 +418,11 @@ public class autoRun1 extends AppCompatActivity  {
                 case ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_LANDED:
                     mTakeOffLandBt.setText("Take off");
                     mTakeOffLandBt.setEnabled(true);
-                    mDownloadBt.setEnabled(true);
                     break;
                 case ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_FLYING:
                 case ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_HOVERING:
                     mTakeOffLandBt.setText("Land");
                     mTakeOffLandBt.setEnabled(true);
-                    mDownloadBt.setEnabled(false);
                     break;
             }
         }
