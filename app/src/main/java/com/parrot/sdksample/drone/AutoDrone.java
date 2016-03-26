@@ -1,17 +1,9 @@
 package com.parrot.sdksample.drone;
 
-import android.app.Activity;
 import android.content.Context;
-import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.net.Uri;
-import android.os.AsyncTask;
-import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
-import android.os.HandlerThread;
-import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.view.View;
@@ -33,11 +25,6 @@ import com.parrot.arsdk.arcontroller.ARDeviceControllerStreamListener;
 import com.parrot.arsdk.arcontroller.ARFeatureARDrone3;
 import com.parrot.arsdk.arcontroller.ARFeatureCommon;
 import com.parrot.arsdk.arcontroller.ARFrame;
-import com.parrot.arsdk.ardatatransfer.ARDATATRANSFER_ERROR_ENUM;
-import com.parrot.arsdk.ardatatransfer.ARDataTransferException;
-import com.parrot.arsdk.ardatatransfer.ARDataTransferManager;
-import com.parrot.arsdk.ardatatransfer.ARDataTransferMedia;
-import com.parrot.arsdk.ardatatransfer.ARDataTransferMediasDownloader;
 import com.parrot.arsdk.ardiscovery.ARDISCOVERY_PRODUCT_ENUM;
 import com.parrot.arsdk.ardiscovery.ARDISCOVERY_PRODUCT_FAMILY_ENUM;
 import com.parrot.arsdk.ardiscovery.ARDiscoveryDevice;
@@ -45,15 +32,20 @@ import com.parrot.arsdk.ardiscovery.ARDiscoveryDeviceNetService;
 import com.parrot.arsdk.ardiscovery.ARDiscoveryDeviceService;
 import com.parrot.arsdk.ardiscovery.ARDiscoveryException;
 import com.parrot.arsdk.ardiscovery.ARDiscoveryService;
-import com.parrot.arsdk.armedia.ARMediaObject;
 import com.parrot.arsdk.arutils.ARUtilsException;
 import com.parrot.arsdk.arutils.ARUtilsFtpConnection;
 import com.parrot.arsdk.arutils.ARUtilsManager;
-import com.parrot.sdksample.R;
 import com.parrot.sdksample.activity.autoRun1;
 import com.parrot.sdksample.enums.Direction;
 
-import java.io.File;
+import org.apache.commons.net.ftp.FTP;
+import org.apache.commons.net.ftp.FTPClient;
+import org.apache.commons.net.ftp.FTPFile;
+import org.apache.commons.net.ftp.FTPReply;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -110,72 +102,36 @@ public class AutoDrone {
          * @param frame the video frame
          */
         void onFrameReceived(ARFrame frame);
-
-        /**
-         * Called before medias will be downloaded
-         * Called in the main thread
-         *
-         * @param nbMedias the number of medias that will be downloaded
-         */
-        void onMatchingMediasFound(int nbMedias);
-
-        /**
-         * Called each time the progress of a download changes
-         * Called in the main thread
-         *
-         * @param mediaName the name of the media
-         * @param progress  the progress of its download (from 0 to 100)
-         */
-        void onDownloadProgressed(String mediaName, int progress);
-
-        /**
-         * Called when a media download has ended
-         * Called in the main thread
-         *
-         * @param mediaName the name of the media
-         */
-        void onDownloadComplete(String mediaName);
     }
 
     private List<Listener> mListeners;
 
     private Handler mHandler;
-
+    private ARDiscoveryDevice discoveryDevice;
     private ARDeviceController mDeviceController;
-    private SDCardModule mSDCardModule;
     private ARCONTROLLER_DEVICE_STATE_ENUM mState;
     private ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_ENUM mFlyingState;
-    private String mCurrentRunId;
-    private ARDiscoveryDevice discoveryDevice;
-    public double altitude;
-    public double longitude;
-    public double latitude;
     public autoRun1 app;
-    private AutoDrone drone = this;
+    public AutoDrone drone = this;
     public Button eButton;
-    private static final String MEDIA_FOLDER = "internal_000";
     public Direction curDirection;
     public Direction[][] coordinateSystem = new Direction[3][3];
     public int[] currentCoordinates = {2,2};
+    public Bitmap curPhoto;
+    public FTPClient ftpClient;
 
-    private AsyncTask<Void, Float, ArrayList<ARMediaObject>> getMediaAsyncTask;
-    private AsyncTask<Void, Float, Void> getThumbnailAsyncTask;
-    private Handler mFileTransferThreadHandler;
-    private HandlerThread mFileTransferThread;
-    private boolean isRunning = false;
-    private boolean isDownloading = false;
-    private final Object lock = new Object();
+    /**
+     * Constructor for the Drone. Initializes the FTP client,
+     * the coordinate system, and necessary drone listeners.
+     **/
 
-    private ARDataTransferManager dataTransferManager;
-    private ARUtilsManager ftpListManager;
-    private ARUtilsManager ftpQueueManager;
-
-    public AutoDrone(Context context, @NonNull ARDiscoveryDeviceService deviceService) {
+    public AutoDrone(Context context, @NonNull ARDiscoveryDeviceService deviceService) throws IOException {
         for(int i = 0; i < coordinateSystem.length; i++) {
             for(int j = 0; j < coordinateSystem[i].length; j++) {
                 coordinateSystem[i][j] = null;
             }
         }
+        ftpClient = new FTPClient();
         curDirection = Direction.NORTH;
         coordinateSystem[2][2] = Direction.NORTH;
         mListeners = new ArrayList<>();
@@ -190,27 +146,13 @@ public class AutoDrone {
         ARDISCOVERY_PRODUCT_FAMILY_ENUM family = ARDiscoveryService.getProductFamily(productType);
         if (ARDISCOVERY_PRODUCT_FAMILY_ENUM.ARDISCOVERY_PRODUCT_FAMILY_ARDRONE.equals(family)) {
 
-            discoveryDevice = createDiscoveryDevice(deviceService, productType);
 
-            ARDiscoveryDevice discoveryDevice = createDiscoveryDevice(deviceService, productType);
+
+            discoveryDevice = createDiscoveryDevice(deviceService, productType);
             if (discoveryDevice != null) {
                 mDeviceController = createDeviceController(discoveryDevice);
             }
 
-            try {
-                String productIP = ((ARDiscoveryDeviceNetService) (deviceService.getDevice())).getIp();
-
-                ARUtilsManager ftpListManager = new ARUtilsManager();
-                ARUtilsManager ftpQueueManager = new ARUtilsManager();
-
-                ftpListManager.initWifiFtp(productIP, DEVICE_PORT, ARUtilsFtpConnection.FTP_ANONYMOUS, "");
-                ftpQueueManager.initWifiFtp(productIP, DEVICE_PORT, ARUtilsFtpConnection.FTP_ANONYMOUS, "");
-
-                mSDCardModule = new SDCardModule(ftpListManager, ftpQueueManager);
-                mSDCardModule.addListener(mSDCardModuleListener);
-            } catch (ARUtilsException e) {
-                Log.e(TAG, "Exception", e);
-            }
 
         } else {
             Log.e(TAG, "DeviceService type is not supported by AutoDrone");
@@ -252,9 +194,7 @@ public class AutoDrone {
      * Returning true doesn't mean that device is disconnected.
      * You can be informed of the actual disconnection through {@link Listener#onDroneConnectionChanged}
      */
-    public void setApp(autoRun1 a) {
-        app = a;
-    }
+
 
     public boolean disconnect() {
         boolean success = false;
@@ -267,6 +207,14 @@ public class AutoDrone {
         return success;
     }
 
+    /**
+     *
+     * @param a sets the instance of the activity to the field app.
+     */
+    public void setApp(autoRun1 a) {
+        app = a;
+
+    }
     /**
      * Get the current connection state
      *
@@ -285,27 +233,54 @@ public class AutoDrone {
         return mFlyingState;
     }
 
+    /**
+     * Drone takes off, the FTP client connects/moves to the picture directory,
+     * and sets the current coordinates to the correct spot.
+     */
     public void takeOff() {
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))) {
             mDeviceController.getFeatureARDrone3().sendPilotingTakeOff();
         }
         currentCoordinates[0] = 2;
         currentCoordinates[1] = 2;
+
+        try {
+            ftpClient.connect(InetAddress.getByName("192.168.42.1"),21);
+            ftpClient.login("anonymous", "");
+            ftpClient.changeWorkingDirectory("/internal_000/Bebop_2/media");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
+    /**
+     * Lands the drone and disconnects the FTP client.
+     */
     public void land() {
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))) {
             mDeviceController.getFeatureARDrone3().sendPilotingLanding();
         }
-
+        try {
+            ftpClient.disconnect();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
+    /**
+     * ONLY TO BE CALLED IN CASE OF AN EMERGENCY.
+     *
+     * DRONE IMMEDIATELY STOPS AND DOES A HARD LANDING.
+     */
     public void emergency() {
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))) {
             mDeviceController.getFeatureARDrone3().sendPilotingEmergency();
         }
     }
 
+    /**
+     * Takes a picture and puts it in media directory.
+     */
     public void takePicture() {
         mDeviceController.getFeatureARDrone3().sendMediaRecordPictureV2();
     }
@@ -334,24 +309,125 @@ public class AutoDrone {
         }
     }
 
+    /**
+     * Yaknow, does a flip. Pretty cool to see, but you need A LOT of space.
+     *
+     * @param direction direction of flip
+     */
     public void flip(ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_ENUM direction) {
         mDeviceController.getFeatureARDrone3().sendAnimationsFlip(direction);
 
     }
 
+    /**
+     * Parameters greater than 0 turn it to the right and vice versa
+     *
+     * @param yaw byte from -100 to 100
+     */
     public void setYaw(byte yaw) {
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))) {
             mDeviceController.getFeatureARDrone3().setPilotingPCMDYaw(yaw);
         }
     }
 
+    /**
+     * Greater than 0 is up, less is down.
+     *
+     * @param gaz byte from -100 to 100
+     */
     public void setGaz(byte gaz) {
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))) {
             mDeviceController.getFeatureARDrone3().setPilotingPCMDGaz(gaz);
         }
     }
 
+    /**
+     * EXPERIMENTAL METHOD. USE AT YOUR OWN RISK.
+     *
+     * Basically this takes a picture, the FTP client then receives it.
+     * After some bitwise shifting to receive the individual rgb values
+     * of the middle pixel, it tries to determine if a wall is in front of it.
+     *
+     * @return returns a boolean if the condition of it seeing a wall is met.
+     */
+    public boolean analyzePicture() {
+        drone.takePicture();
+        drone.getFirstPicture();
+        // Manipulating bitmap to get values that are easy to work with
+        curPhoto.setHasAlpha(true);
+        int[][] argb = getPixels2D(curPhoto);
+        int curPixel = argb[curPhoto.getHeight()][curPhoto.getWidth()];
+        int blue = curPixel & 0x000000FF;
+        int green = curPixel >> 8 & 0x000000FF;
+        int red = curPixel >> 16 & 0x000000FF;
+        // Try to determine if wall is in front. This is a color blind test.
+        if(blue  > 210 || green > 210 || red > 210) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Sets curPhoto equal to the first photo in the working directory.
+     */
+    public void getFirstPicture() {
+        try {
+            if (FTPReply.isPositiveCompletion(ftpClient.getReplyCode())) {
+                ftpClient.enterLocalPassiveMode();
+                ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+                FTPFile[] files = ftpClient.listFiles("/internal_000/Bebop_2/media");
+                boolean firstFileFound = false;
+                for (FTPFile file : files) {
+                    if (!firstFileFound) {
+                        String fileName = file.getName();
+                        if (fileName.endsWith(".jpg")
+                                || fileName.endsWith(".png")) {
+                            String fileWithPath = "/internal_000/Bebop_2/media" + "/" + fileName;
+                            drone.curPhoto = null;
+                            InputStream inStream = ftpClient.retrieveFileStream(fileWithPath);
+                            // Sets the current photo to the first photo in the media directory (most recent)
+                            drone.curPhoto = BitmapFactory.decodeStream(inStream);
+                            inStream.close();
+                            break;
+                        }
+                    }
+                }
+            }
+        }catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Since the Bitmap class only has the getPixel and the getPixels (returns a 1D array) methods
+     * I wrote this to retrieve a matrix of the pixel values, to make the whole process of image
+     * manipulation easier.
+     *
+     * @param bmp the current photo
+     * @return returns a 2D array of pixels from the bitmap parameter.
+     */
+    public int[][] getPixels2D(Bitmap bmp) {
+        int[][] ret = new int[bmp.getHeight()][bmp.getWidth()];
+        for(int i = 0; i < bmp.getHeight(); i++) {
+            for(int j = 0; j < bmp.getWidth(); j++) {
+                ret[i][j] = bmp.getPixel(i,j);
+            }
+        }
+        return ret;
+    }
+
+    /**
+     * VERY IMPORTANT METHOD. THIS IS HOW YOU MAKE THE DRONE DO COMPLEX MOVEMENTS FOR A DESIGNATED AMOUNT OF TIME.
+     *
+     * @param flag byte 1 or 0. 1 if you want it to go, 0 if not.
+     * @param x same as setRoll
+     * @param y same as setPitch
+     * @param z same as setYaw
+     * @param g same as setGaz
+     * @param time milliseconds for command to run for.
+     */
     public void setpositionHere(final byte flag, final byte x, final byte y, final byte z, final byte g, final int time) {
+        // Based on the values sent, this changes the coordinates and direction of the drone.
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING)) && mFlyingState.equals(ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_ENUM.ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_HOVERING)) {
             if(z < 0) {
                 if(curDirection != Direction.NORTH) curDirection = Direction.values()[(curDirection.ordinal()-1)];
@@ -385,13 +461,14 @@ public class AutoDrone {
                     coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = curDirection;
                 }
             }
-            Bitmap photo = BitmapFactory.decodeFile("DCIM/Camera/A.jpg");
-            photo.setHasAlpha(true);
-            int[] argb = new int[photo.getHeight()* photo.getWidth()];
-            photo.getPixels(argb,0,photo.getWidth(),0,0,photo.getWidth(),photo.getHeight());
-            if(argb[(photo.getWidth()*photo.getHeight())/2] < 10) {
-                return;
-            }
+
+            /**
+             * Okay, here's where it gets weird.
+             * We need to multithread to keep certain elements of the UI (like the emergency button)
+             * available in case we would like to run said commands.
+             * By multithreading, we can run the app and the drone command simultaneously with no problem.
+             */
+
             Thread r = new Thread() {
                 @Override
                 public void run() {
@@ -421,8 +498,9 @@ public class AutoDrone {
     }
 
     /**
-     * Take in account or not the pitch and roll values
+     * Command that attempts to move the drone forward one space in the maze.
      *
+     * Almost works perfectly, but still in testing.
      */
     public void moveForwardOneSpace() {
         drone.setpositionHere((byte) 1, (byte) 0, (byte) 10, (byte) 0, (byte) 0, 2500);
@@ -432,14 +510,25 @@ public class AutoDrone {
             e.printStackTrace();
         }
     }
+
+    /**
+     * EXPERIMENTAL
+     * Command that attempts to turn the drone 90 degrees to the left.
+     */
     public void turnLeft() {
-        drone.setpositionHere((byte) 1, (byte) 0, (byte) 0, (byte) -25, (byte) 0,2950);
+        drone.setpositionHere((byte) 1, (byte) 0, (byte) 0, (byte) -25, (byte) 0,2500);
         try {
             Thread.sleep(4250);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
     }
+
+    /**
+     * EXPERIMENTAL
+     * Command that attempts to turn the drone 90 degrees to the right.
+     */
+
     public void turnRight() {
         drone.setpositionHere((byte) 1, (byte) 0, (byte) 0, (byte) 25, (byte) 0,2950);
         try {
@@ -448,29 +537,15 @@ public class AutoDrone {
             e.printStackTrace();
         }
     }
+
+    /**
+     * Determines whether to run the command or not
+     * @param flag byte 1 or 0
+     */
     public void setFlag(byte flag) {
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))) {
             mDeviceController.getFeatureARDrone3().setPilotingPCMDFlag(flag);
         }
-    }
-
-    /**
-     * Download the last flight medias
-     * Uses the run id to download all medias related to the last flight
-     * If no run id is available, download all medias of the day
-     */
-    public void getLastFlightMedias() {
-        String runId = mCurrentRunId;
-        if ((runId != null) && !runId.isEmpty()) {
-            mSDCardModule.getFlightMedias(runId);
-        } else {
-            Log.e(TAG, "RunID not available, fallback to the day's medias");
-            mSDCardModule.getTodaysFlightMedias();
-        }
-    }
-
-    public void cancelGetLastFlightMedias() {
-        mSDCardModule.cancelGetFlightMedias();
     }
 
     private ARDiscoveryDevice createDiscoveryDevice(@NonNull ARDiscoveryDeviceService service, ARDISCOVERY_PRODUCT_ENUM productType) {
@@ -546,59 +621,7 @@ public class AutoDrone {
         }
     }
 
-    private void notifyMatchingMediasFound(int nbMedias) {
-        List<Listener> listenersCpy = new ArrayList<>(mListeners);
-        for (Listener listener : listenersCpy) {
-            listener.onMatchingMediasFound(nbMedias);
-        }
-    }
 
-    private void notifyDownloadProgressed(String mediaName, int progress) {
-        List<Listener> listenersCpy = new ArrayList<>(mListeners);
-        for (Listener listener : listenersCpy) {
-            listener.onDownloadProgressed(mediaName, progress);
-        }
-    }
-
-    private void notifyDownloadComplete(String mediaName) {
-        List<Listener> listenersCpy = new ArrayList<>(mListeners);
-        for (Listener listener : listenersCpy) {
-            listener.onDownloadComplete(mediaName);
-        }
-    }
-    //endregion notify listener block
-
-    private final SDCardModule.Listener mSDCardModuleListener = new SDCardModule.Listener() {
-        @Override
-        public void onMatchingMediasFound(final int nbMedias) {
-            mHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    notifyMatchingMediasFound(nbMedias);
-                }
-            });
-        }
-
-        @Override
-        public void onDownloadProgressed(final String mediaName, final int progress) {
-            mHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    notifyDownloadProgressed(mediaName, progress);
-                }
-            });
-        }
-
-        @Override
-        public void onDownloadComplete(final String mediaName) {
-            mHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    notifyDownloadComplete(mediaName);
-                }
-            });
-        }
-    };
 
     public final ARDeviceControllerListener mDeviceControllerListener = new ARDeviceControllerListener() {
         @Override
@@ -607,7 +630,7 @@ public class AutoDrone {
             if (ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING.equals(mState)) {
                 mDeviceController.getFeatureARDrone3().sendMediaStreamingVideoEnable((byte) 1);
             } else if (ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_STOPPED.equals(mState)) {
-                mSDCardModule.cancelGetFlightMedias();
+
             }
             mHandler.post(new Runnable() {
                 @Override
@@ -660,9 +683,7 @@ public class AutoDrone {
 
                             break;
                         case ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_HOVERING:
-                            //mDeviceController.getFeatureARDrone3().setPilotingPCMDPitch((byte) 50);
                             break;
-                        //mBebopDrone.setPitch((byte)75);
                         default:
                             break;
                     }
@@ -673,11 +694,7 @@ public class AutoDrone {
             else if ((commandKey == ARCONTROLLER_DICTIONARY_KEY_ENUM.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED) && (elementDictionary != null)) {
                 ARControllerArgumentDictionary<Object> args = elementDictionary.get(ARControllerDictionary.ARCONTROLLER_DICTIONARY_SINGLE_KEY);
                 if (args != null) {
-                    latitude = (double) args.get(ARFeatureARDrone3.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED_LATITUDE);
-                    longitude = (double) args.get(ARFeatureARDrone3.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED_LONGITUDE);
-                    altitude = (double) args.get(ARFeatureARDrone3.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_PILOTINGSTATE_POSITIONCHANGED_ALTITUDE);
-                    if (altitude > 600.0)
-                        deviceController.getFeatureARDrone3().sendPilotingLanding();
+
                 }
             } else if ((commandKey == ARCONTROLLER_DICTIONARY_KEY_ENUM.ARCONTROLLER_DICTIONARY_KEY_ARDRONE3_MEDIARECORDEVENT_PICTUREEVENTCHANGED) && (elementDictionary != null)) {
                 ARControllerArgumentDictionary<Object> args = elementDictionary.get(ARControllerDictionary.ARCONTROLLER_DICTIONARY_SINGLE_KEY);
@@ -695,11 +712,9 @@ public class AutoDrone {
             else if ((commandKey == ARCONTROLLER_DICTIONARY_KEY_ENUM.ARCONTROLLER_DICTIONARY_KEY_COMMON_RUNSTATE_RUNIDCHANGED) && (elementDictionary != null)) {
                 ARControllerArgumentDictionary<Object> args = elementDictionary.get(ARControllerDictionary.ARCONTROLLER_DICTIONARY_SINGLE_KEY);
                 if (args != null) {
-                    final String runID = (String) args.get(ARFeatureCommon.ARCONTROLLER_DICTIONARY_KEY_COMMON_RUNSTATE_RUNIDCHANGED_RUNID);
                     mHandler.post(new Runnable() {
                         @Override
                         public void run() {
-                            mCurrentRunId = runID;
                         }
                     });
                 }

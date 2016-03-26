@@ -11,47 +11,29 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_ENUM;
 import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_MEDIARECORDEVENT_PICTUREEVENTCHANGED_ERROR_ENUM;
 import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_ENUM;
 import com.parrot.arsdk.arcontroller.ARCONTROLLER_DEVICE_STATE_ENUM;
-import com.parrot.arsdk.arcontroller.ARCONTROLLER_DICTIONARY_KEY_ENUM;
-import com.parrot.arsdk.arcontroller.ARCONTROLLER_ERROR_ENUM;
-import com.parrot.arsdk.arcontroller.ARControllerArgumentDictionary;
 import com.parrot.arsdk.arcontroller.ARControllerCodec;
-import com.parrot.arsdk.arcontroller.ARControllerDictionary;
-import com.parrot.arsdk.arcontroller.ARDeviceController;
-import com.parrot.arsdk.arcontroller.ARDeviceControllerListener;
-import com.parrot.arsdk.arcontroller.ARFeatureARDrone3;
 import com.parrot.arsdk.arcontroller.ARFrame;
-import com.parrot.arsdk.ardiscovery.ARDISCOVERY_PRODUCT_ENUM;
-import com.parrot.arsdk.ardiscovery.ARDiscoveryDevice;
 import com.parrot.arsdk.ardiscovery.ARDiscoveryDeviceService;
 import com.parrot.sdksample.R;
 import com.parrot.sdksample.drone.AutoDrone;
-import com.parrot.sdksample.drone.BebopDrone;
 import com.parrot.sdksample.enums.Direction;
 import com.parrot.sdksample.view.BebopVideoView;
+
+import java.io.IOException;
 
 public class autoRun1 extends AppCompatActivity  {
     private static final String TAG = "autoRun1";
     private AutoDrone mBebopDrone;
     private ProgressDialog mConnectionProgressDialog;
-    private ProgressDialog mDownloadProgressDialog;
-
     private BebopVideoView mVideoView;
-
     private TextView mBatteryLabel;
     private Button mTakeOffLandBt;
     private Button mDownloadBt;
-    private ARDiscoveryDevice discoveryDevice;
-    private int mNbMaxDownload;
-    private int mCurrentDownloadIndex;
-    double latitude;
-    double longitude;
-    double altitude;
     public Button emergencyButton;
-    TextView coords;
+    public TextView coords;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,7 +46,11 @@ public class autoRun1 extends AppCompatActivity  {
         Intent intent = getIntent();
 
         ARDiscoveryDeviceService service = intent.getParcelableExtra(DeviceListActivity.EXTRA_DEVICE_SERVICE);
-        mBebopDrone = new AutoDrone(this, service);
+        try {
+            mBebopDrone = new AutoDrone(this, service);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         mBebopDrone.addListener(mBebopListener);
         coords = (TextView) findViewById(R.id.coordinates);
         initIHM();
@@ -143,35 +129,12 @@ public class autoRun1 extends AppCompatActivity  {
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
-                        mBebopDrone.moveForwardOneSpace();
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                updateCoords();
-                            }
-                        });
-                        mBebopDrone.turnLeft();
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                updateCoords();
-                            }
-                        });
-                        mBebopDrone.moveForwardOneSpace();
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                updateCoords();
-                            }
-                        });
-                        mBebopDrone.turnRight();
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                updateCoords();
-                            }
-                        });
-                        mBebopDrone.moveForwardOneSpace();
+                        if(mBebopDrone.analyzePicture()) {
+                            mBebopDrone.turnLeft();
+                        }
+                        else {
+                            mBebopDrone.moveForwardOneSpace();
+                        }
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
@@ -179,12 +142,6 @@ public class autoRun1 extends AppCompatActivity  {
                             }
                         });
                         mBebopDrone.land();
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                updateCoords();
-                            }
-                        });
 
                     }
                 };
@@ -202,9 +159,6 @@ public class autoRun1 extends AppCompatActivity  {
                 };
                 t.start();
                 r.start();
-
-                //mBebopDrone.flip(ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_ENUM.ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_FRONT);
-
             }
         });
 
@@ -235,17 +189,6 @@ public class autoRun1 extends AppCompatActivity  {
         findViewById(R.id.takePictureBt).setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 mBebopDrone.takePicture();
-                mDownloadProgressDialog = new ProgressDialog(autoRun1.this, R.style.AppCompatAlertDialogStyle);
-                mDownloadProgressDialog.setIndeterminate(true);
-                mDownloadProgressDialog.setMessage("Fetching medias");
-                mDownloadProgressDialog.setCancelable(false);
-                mDownloadProgressDialog.setButton(DialogInterface.BUTTON_NEGATIVE, "Cancel", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        mBebopDrone.cancelGetLastFlightMedias();
-                    }
-                });
-                mDownloadProgressDialog.show();
             }
         });
 
@@ -253,19 +196,7 @@ public class autoRun1 extends AppCompatActivity  {
         mDownloadBt.setEnabled(true);
         mDownloadBt.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                mBebopDrone.getLastFlightMedias();
 
-                mDownloadProgressDialog = new ProgressDialog(autoRun1.this, R.style.AppCompatAlertDialogStyle);
-                mDownloadProgressDialog.setIndeterminate(true);
-                mDownloadProgressDialog.setMessage("Fetching medias");
-                mDownloadProgressDialog.setCancelable(false);
-                mDownloadProgressDialog.setButton(DialogInterface.BUTTON_NEGATIVE, "Cancel", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        mBebopDrone.cancelGetLastFlightMedias();
-                    }
-                });
-                mDownloadProgressDialog.show();
             }
         });
 
@@ -277,17 +208,13 @@ public class autoRun1 extends AppCompatActivity  {
                         v.setPressed(true);
                         mBebopDrone.setGaz((byte) 50);
                         break;
-
                     case MotionEvent.ACTION_UP:
                         v.setPressed(false);
                         mBebopDrone.setGaz((byte) 0);
                         break;
-
                     default:
-
                         break;
                 }
-
                 return true;
             }
         });
@@ -505,11 +432,10 @@ public class autoRun1 extends AppCompatActivity  {
                     mTakeOffLandBt.setEnabled(true);
                     mDownloadBt.setEnabled(false);
                     break;
-                default:
-                    mTakeOffLandBt.setEnabled(false);
-                    mDownloadBt.setEnabled(false);
             }
         }
+
+
 
         @Override
         public void onPictureTaken(ARCOMMANDS_ARDRONE3_MEDIARECORDEVENT_PICTUREEVENTCHANGED_ERROR_ENUM error) {
@@ -526,47 +452,6 @@ public class autoRun1 extends AppCompatActivity  {
             mVideoView.displayFrame(frame);
         }
 
-        @Override
-        public void onMatchingMediasFound(int nbMedias) {
-            mDownloadProgressDialog.dismiss();
-
-            mNbMaxDownload = nbMedias;
-            mCurrentDownloadIndex = 1;
-
-            if (nbMedias > 0) {
-                mDownloadProgressDialog = new ProgressDialog(autoRun1.this, R.style.AppCompatAlertDialogStyle);
-                mDownloadProgressDialog.setIndeterminate(false);
-                mDownloadProgressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-                mDownloadProgressDialog.setMessage("Downloading medias");
-                mDownloadProgressDialog.setMax(mNbMaxDownload * 3);
-                mDownloadProgressDialog.setSecondaryProgress(mCurrentDownloadIndex * 100);
-                mDownloadProgressDialog.setProgress(0);
-                mDownloadProgressDialog.setCancelable(false);
-                mDownloadProgressDialog.setButton(DialogInterface.BUTTON_NEGATIVE, "Cancel", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        mBebopDrone.cancelGetLastFlightMedias();
-                    }
-                });
-                mDownloadProgressDialog.show();
-            }
-        }
-
-        @Override
-        public void onDownloadProgressed(String mediaName, int progress) {
-            mDownloadProgressDialog.setProgress(((mCurrentDownloadIndex - 1) * 100) + progress);
-        }
-
-        @Override
-        public void onDownloadComplete(String mediaName) {
-            mCurrentDownloadIndex++;
-            mDownloadProgressDialog.setSecondaryProgress(mCurrentDownloadIndex * 100);
-
-            if (mCurrentDownloadIndex > mNbMaxDownload) {
-                mDownloadProgressDialog.dismiss();
-                mDownloadProgressDialog = null;
-            }
-        }
     };
 
 
