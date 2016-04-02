@@ -1,2 +1,2 @@
-include ':app'
+include ':libraries:opencv', ':app'
 project(':app').projectDir = new File('../app/')

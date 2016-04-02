@@ -21,22 +21,7 @@
         </activity>
 
         <activity
-            android:name=".activity.BebopActivity"
-            android:screenOrientation="landscape"/>
-
-        <activity
-            android:name=".activity.SkyControllerActivity"
-            android:screenOrientation="landscape"/>
-
-        <activity
-            android:name=".activity.JSActivity"
-            android:screenOrientation="landscape"/>
-        <activity
             android:name=".activity.autoRun1"
-            android:screenOrientation="landscape"/>
-
-        <activity
-            android:name=".activity.MiniDroneActivity"
             android:screenOrientation="landscape"/>
     </application>
 

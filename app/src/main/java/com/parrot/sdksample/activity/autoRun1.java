@@ -128,8 +128,13 @@ public class autoRun1 extends AppCompatActivity  {
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
-                        mBebopDrone.moveForwardOneSpace();
-                        mBebopDrone.turnLeft();
+                        mBebopDrone.takePicture();
+                        if(mBebopDrone.analyzePicture()) {
+                            mBebopDrone.turnLeft();
+                        }
+                        else {
+                            mBebopDrone.moveForwardOneSpace();
+                        }
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {

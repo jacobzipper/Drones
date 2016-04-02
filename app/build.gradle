@@ -26,18 +26,19 @@ android {
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
+    compile fileTree(include: ['*.jar'], dir: 'libs')
     testCompile 'junit:junit:4.12'
     compile 'com.android.support:appcompat-v7:23.1.1'
     compile 'com.parrot:arsdk:3.8.3'
     compile 'com.android.support:appcompat-v7:23.1.1'
-    compile "com.android.support:design:23.1.1"
+    compile 'com.android.support:design:23.1.1'
     compile 'commons-net:commons-net:3.3'
-    testCompile "junit:junit:4.12"
-    if (rootProject.ext.hasProperty('buildWithLocalSDK')){
+    testCompile 'junit:junit:4.12'
+    if (rootProject.ext.hasProperty('buildWithLocalSDK')) {
         compile project(':arsdk')
     } else {
         compile 'com.parrot:arsdk:3.8.3'
     }
-
+    compile fileTree(include: ['opencv'], dir: 'libraries')
+    compile project(':libraries:opencv')
 }

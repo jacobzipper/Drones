@@ -11,6 +11,7 @@ import android.widget.Button;
 
 import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_ENUM;
 import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_MEDIARECORDEVENT_PICTUREEVENTCHANGED_ERROR_ENUM;
+import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_PICTURESETTINGS_PICTUREFORMATSELECTION_TYPE_ENUM;
 import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_ENUM;
 import com.parrot.arsdk.arcontroller.ARCONTROLLER_DEVICE_STATE_ENUM;
 import com.parrot.arsdk.arcontroller.ARCONTROLLER_DICTIONARY_KEY_ENUM;
@@ -39,6 +40,12 @@ import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.ftp.FTPReply;
+import org.opencv.android.Utils;
+import org.opencv.core.Core;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
+import org.opencv.imgproc.Imgproc;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -116,6 +123,7 @@ public class AutoDrone {
     public int[] currentCoordinates = {2,2};
     public Bitmap curPhoto;
     public FTPClient ftpClient;
+    public Mat curPicMat;
 
     /**
      * Constructor for the Drone. Initializes the FTP client,
@@ -128,6 +136,7 @@ public class AutoDrone {
                 coordinateSystem[i][j] = null;
             }
         }
+        System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
         ftpClient = new FTPClient();
         curDirection = Direction.NORTH;
         coordinateSystem[2][2] = Direction.NORTH;
@@ -248,6 +257,7 @@ public class AutoDrone {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        mDeviceController.getFeatureARDrone3().sendPictureSettingsPictureFormatSelection(ARCOMMANDS_ARDRONE3_PICTURESETTINGS_PICTUREFORMATSELECTION_TYPE_ENUM.ARCOMMANDS_ARDRONE3_PICTURESETTINGS_PICTUREFORMATSELECTION_TYPE_JPEG);
     }
 
     /**
@@ -355,17 +365,20 @@ public class AutoDrone {
             e.printStackTrace();
         }
         if(curPhoto==null) return false;
-        int[][] argb = getPixels2D(curPhoto);
-        int curPixel = argb[curPhoto.getHeight()][curPhoto.getWidth()];
-        int blue = curPixel & 0x000000FF;
-        int green = curPixel >> 8 & 0x000000FF;
-        int red = curPixel >> 16 & 0x000000FF;
-        // Try to determine if wall is in front. This is a color blind test.
-        if(blue  > 210 || green > 210 || red > 210) {
-            return true;
-        }
+        Utils.bitmapToMat(curPhoto,curPicMat);
+        List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
+        Mat tempimg = new Mat();
+        curPicMat.convertTo(tempimg, CvType.CV_32SC1);
+        Imgproc.findContours(tempimg,contours,new Mat(),Imgproc.RETR_FLOODFILL,Imgproc.CHAIN_APPROX_SIMPLE);
+        
         return false;
     }
+
+    /**
+     * This method takes the curPicMat and returns the scalar of the most prominent color.
+     *
+     */
+
 
     /**
      * Sets curPhoto equal to the first photo in the working directory.
@@ -388,6 +401,7 @@ public class AutoDrone {
                             // Sets the current photo to the first photo in the media directory (most recent)
                             drone.curPhoto = BitmapFactory.decodeStream(inStream);
                             inStream.close();
+                            ftpClient.deleteFile(fileWithPath);
                             break;
                         }
                     }
@@ -398,23 +412,7 @@ public class AutoDrone {
         }
     }
 
-    /**
-     * Since the Bitmap class only has the getPixel and the getPixels (returns a 1D array) methods
-     * I wrote this to retrieve a matrix of the pixel values, to make the whole process of image
-     * manipulation easier.
-     *
-     * @param bmp the current photo
-     * @return returns a 2D array of pixels from the bitmap parameter.
-     */
-    public int[][] getPixels2D(Bitmap bmp) {
-        int[][] ret = new int[bmp.getHeight()][bmp.getWidth()];
-        for(int i = 0; i < bmp.getHeight(); i++) {
-            for(int j = 0; j < bmp.getWidth(); j++) {
-                ret[i][j] = bmp.getPixel(i,j);
-            }
-        }
-        return ret;
-    }
+
 
     /**
      * VERY IMPORTANT METHOD. THIS IS HOW YOU MAKE THE DRONE DO COMPLEX MOVEMENTS FOR A DESIGNATED AMOUNT OF TIME.
