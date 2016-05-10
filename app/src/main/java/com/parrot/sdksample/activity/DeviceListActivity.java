@@ -22,6 +22,13 @@ import com.parrot.sdksample.discovery.DroneDiscoverer;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Icarus
+ * Pine Crest School
+ * Contact:
+ *  Email: jacob.zipper@pinecrest.edu
+ *  Phone: 954-740-1737
+ */
 public class DeviceListActivity extends AppCompatActivity {
     public static final String EXTRA_DEVICE_SERVICE = "EXTRA_DEVICE_SERVICE";
 

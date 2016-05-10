@@ -13,7 +13,7 @@ public class Core {
 
     // these constants are wrapped inside functions to prevent inlining
     private static String getVersion() { return "2.4.11.0"; }
-    private static String getNativeLibraryName() { return "opencv_java2411"; }
+    private static String getNativeLibraryName() { return "opencv_java"; }
     private static int getVersionEpoch() { return 2; }
     private static int getVersionMajor() { return 4; }
     private static int getVersionMinor() { return 11; }

@@ -16,7 +16,15 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
+/**
+ * Icarus
+ * Pine Crest School
+ * Contact:
+ *  Email: jacob.zipper@pinecrest.edu
+ *  Phone: 954-740-1737
+ *
+ *  Handles the video view on the apps main view
+ */
 public class BebopVideoView extends SurfaceView implements SurfaceHolder.Callback {
 
     private static final String TAG = "BebopVideoView";
@@ -56,6 +64,10 @@ public class BebopVideoView extends SurfaceView implements SurfaceHolder.Callbac
         getHolder().addCallback(this);
     }
 
+    /**
+     * Gets the current video frame and queues it to be played on the screen
+     * @param frame
+     */
     public void displayFrame(ARFrame frame) {
         mReadyLock.lock();
 

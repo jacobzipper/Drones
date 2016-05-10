@@ -9,7 +9,10 @@
     <com.parrot.sdksample.view.BebopVideoView
         android:id="@+id/videoView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
+        android:layout_height="match_parent"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true" />
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -170,22 +173,6 @@
         android:layout_alignEnd="@+id/gazDownBt"
         android:gravity="center_horizontal"/>
 
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="START AUTONOMOUS"
-        android:id="@+id/autoButton"
-        android:layout_below="@+id/gazDownBt"
-        android:layout_centerHorizontal="true" />
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="LAND"
-        android:id="@+id/eLand"
-        android:layout_below="@+id/autoButton"
-        android:layout_centerHorizontal="true" />
-
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -195,4 +182,181 @@
         android:layout_below="@+id/emergency"
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="numberDecimal"
+        android:ems="10"
+        android:id="@+id/coord1"
+        android:hint="c1"
+        android:layout_above="@+id/forwardBt"
+        android:layout_toRightOf="@+id/textView"
+        android:layout_toLeftOf="@+id/coord2"
+        android:layout_toStartOf="@+id/coord2" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="numberDecimal"
+        android:ems="10"
+        android:id="@+id/coord2"
+        android:hint="c2"
+        android:layout_above="@+id/forwardBt"
+        android:layout_toRightOf="@+id/batteryLabel"
+        android:layout_alignRight="@+id/rollRightBt"
+        android:layout_alignEnd="@+id/rollRightBt" />
+
+    <Button
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Up"
+        android:id="@+id/updateCoords"
+        android:layout_above="@+id/gazUpBt"
+        android:layout_toRightOf="@+id/coord2"
+        android:layout_toEndOf="@+id/coord2" />
+
+    <CheckBox
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Dot"
+        android:id="@+id/dotBox"
+        android:layout_marginTop="54dp"
+        android:layout_below="@+id/backBt"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:checked="false" />
+
+    <Button
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Send Wall"
+        android:id="@+id/sendWall"
+        android:layout_alignBottom="@+id/dotBox"
+        android:layout_toRightOf="@+id/coordinates"
+        android:layout_toEndOf="@+id/coordinates" />
+
+    <Button
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Forward 1"
+        android:id="@+id/forwardOne"
+        android:layout_above="@+id/takeOffOrLandBt"
+        android:layout_toLeftOf="@+id/turnRight"
+        android:layout_alignLeft="@+id/takeOffOrLandBt"
+        android:layout_alignStart="@+id/takeOffOrLandBt" />
+
+    <Button
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Turn Right"
+        android:id="@+id/turnRight"
+        android:layout_above="@+id/takeOffOrLandBt"
+        android:layout_toRightOf="@+id/takeOffOrLandBt"
+        android:layout_toEndOf="@+id/takeOffOrLandBt" />
+
+    <Button
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Turn Left"
+        android:id="@+id/turnLeft"
+        android:layout_alignTop="@+id/forwardOne"
+        android:layout_toRightOf="@+id/updateCoords"
+        android:layout_toEndOf="@+id/updateCoords" />
+
+    <Button
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="start"
+        android:id="@+id/autoButton"
+        android:layout_above="@+id/dotBox"
+        android:layout_centerHorizontal="true" />
+
+    <CheckBox
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ltb"
+        android:id="@+id/ltbButton"
+        android:layout_below="@+id/dotBox"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:checked="false" />
+
+    <CheckBox
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="dkb"
+        android:id="@+id/dkbButton"
+        android:layout_below="@+id/dotBox"
+        android:layout_toRightOf="@+id/dotBox"
+        android:checked="false"
+        android:layout_alignRight="@+id/backBt"
+        android:layout_alignEnd="@+id/backBt" />
+
+    <CheckBox
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ong"
+        android:id="@+id/ongButton"
+        android:checked="false"
+        android:layout_alignTop="@+id/dkbButton"
+        android:layout_alignLeft="@+id/redButton"
+        android:layout_alignStart="@+id/redButton" />
+
+    <CheckBox
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="blk"
+        android:id="@+id/blkButton"
+        android:checked="false"
+        android:layout_alignTop="@+id/dkbButton"
+        android:layout_toRightOf="@+id/ongButton"
+        android:layout_toEndOf="@+id/ongButton" />
+
+    <CheckBox
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ylw"
+        android:id="@+id/ylwButton"
+        android:layout_below="@+id/ltbButton"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:checked="false" />
+
+    <CheckBox
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="prp"
+        android:id="@+id/prpButton"
+        android:layout_alignTop="@+id/ylwButton"
+        android:layout_toRightOf="@+id/ylwButton"
+        android:layout_toEndOf="@+id/ylwButton"
+        android:checked="false" />
+
+    <CheckBox
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="red"
+        android:id="@+id/redButton"
+        android:checked="false"
+        android:layout_below="@+id/dkbButton"
+        android:layout_alignRight="@+id/dkbButton"
+        android:layout_alignEnd="@+id/dkbButton" />
+
+    <CheckBox
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="grn"
+        android:id="@+id/grnButton"
+        android:layout_alignTop="@+id/redButton"
+        android:layout_toRightOf="@+id/ongButton"
+        android:layout_toEndOf="@+id/ongButton"
+        android:checked="false" />
+
 </RelativeLayout>

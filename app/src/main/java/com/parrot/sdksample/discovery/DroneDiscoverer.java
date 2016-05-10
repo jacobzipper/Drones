@@ -16,7 +16,13 @@ import com.parrot.arsdk.ardiscovery.receivers.ARDiscoveryServicesDevicesListUpda
 
 import java.util.ArrayList;
 import java.util.List;
-
+/**
+ * Icarus
+ * Pine Crest School
+ * Contact:
+ *  Email: jacob.zipper@pinecrest.edu
+ *  Phone: 954-740-1737
+ */
 public class DroneDiscoverer
 {
     private static final String TAG = "DroneDiscoverer";
@@ -26,7 +32,7 @@ public class DroneDiscoverer
          * Called when the list of seen drones is updated
          * Called in the main thread
          * @param dronesList list of ARDiscoveryDeviceService which represents all available drones
-         *                   Content of this list respect the drone types given in startDiscovery
+         * Content of this list respect the drone types given in startDiscovery
          */
         void onDronesListUpdated(List<ARDiscoveryDeviceService> dronesList);
     }
@@ -58,7 +64,7 @@ public class DroneDiscoverer
      * Add a listener
      * All callbacks of the interface Listener will be called within this function
      * Should be called in the main thread
-     * @param listener an object that implements the {@link Listener} interface
+     * @param listener
      */
     public void addListener(Listener listener) {
         mListeners.add(listener);
@@ -68,7 +74,7 @@ public class DroneDiscoverer
 
     /**
      * remove a listener from the listener list
-     * @param listener an object that implements the {@link Listener} interface
+     * @param listener
      */
     public void removeListener(Listener listener) {
         mListeners.remove(listener);
@@ -140,7 +146,6 @@ public class DroneDiscoverer
     /**
      * Start discovering Parrot drones
      * For Wifi drones, the device should be on the drone's network
-     * When drones will be discovered, you will be notified through {@link Listener#onDronesListUpdated(List)}
      */
     public void startDiscovering() {
         if (mArdiscoveryService != null) {

@@ -1,7 +1,6 @@
 package com.parrot.sdksample.activity;
 
 import android.app.ProgressDialog;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
@@ -9,6 +8,8 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_MEDIARECORDEVENT_PICTUREEVENTCHANGED_ERROR_ENUM;
@@ -18,12 +19,21 @@ import com.parrot.arsdk.arcontroller.ARControllerCodec;
 import com.parrot.arsdk.arcontroller.ARFrame;
 import com.parrot.arsdk.ardiscovery.ARDiscoveryDeviceService;
 import com.parrot.sdksample.R;
+import com.parrot.sdksample.classes.Wall;
 import com.parrot.sdksample.drone.AutoDrone;
 import com.parrot.sdksample.enums.Direction;
 import com.parrot.sdksample.view.BebopVideoView;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
-
+/**
+ * Icarus
+ * Pine Crest School
+ * Contact:
+ *  Email: jacob.zipper@pinecrest.edu
+ *  Phone: 954-740-1737
+ */
 public class autoRun1 extends AppCompatActivity  {
     private static final String TAG = "autoRun1";
     private AutoDrone mBebopDrone;
@@ -34,6 +44,11 @@ public class autoRun1 extends AppCompatActivity  {
     public Button emergencyButton;
     public TextView coords;
 
+    /**
+     * Creates the activity and loads the layout.
+     * Also does some drone initialization.
+     * @param savedInstanceState
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -98,6 +113,11 @@ public class autoRun1 extends AppCompatActivity  {
         String set = "Coordinates: (" + c[0] + ", " + c[1] + ")\nDirection: " + d.toString();
         coords.setText(set);
     }
+
+    /**
+     * Sets all the onClick listeners for buttons in the UI
+     * and controls most of the other UI related stuff.
+     */
     private void initIHM() {
 
         mVideoView = (BebopVideoView) findViewById(R.id.videoView);
@@ -108,66 +128,6 @@ public class autoRun1 extends AppCompatActivity  {
             }
         });
         mBebopDrone.eButton = emergencyButton;
-        // Auto Starts here
-
-        findViewById(R.id.autoButton).setOnClickListener(new View.OnClickListener(){
-
-            public void onClick(View v) {
-                Thread t = new Thread() {
-                    @Override
-                public void run() {
-                        mBebopDrone.takeOff();
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                updateCoords();
-                            }
-                        });
-                        try {
-                            this.sleep(5000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                        mBebopDrone.takePicture();
-                        if(mBebopDrone.analyzePicture()) {
-                            mBebopDrone.turnLeft();
-                        }
-                        else {
-                            mBebopDrone.moveForwardOneSpace();
-                        }
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                updateCoords();
-                            }
-                        });
-                        mBebopDrone.land();
-
-                    }
-                };
-                Thread r = new Thread() {
-                    @Override
-                public void run() {
-                        mBebopDrone.eButton.setOnClickListener(new View.OnClickListener() {
-                            @Override
-                            public void onClick(View v) {
-                                mBebopDrone.emergency();
-                            }
-                        });
-
-                    }
-                };
-                t.start();
-                r.start();
-            }
-        });
-
-        findViewById(R.id.eLand).setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                mBebopDrone.land();
-
-            }
-        });
 
         mTakeOffLandBt = (Button) findViewById(R.id.takeOffOrLandBt);
         mTakeOffLandBt.setOnClickListener(new View.OnClickListener() {
@@ -180,9 +140,113 @@ public class autoRun1 extends AppCompatActivity  {
                     case ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_FLYING:
                     case ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_HOVERING:
                         mBebopDrone.land();
+                        writeToFile(mBebopDrone.log);
                         break;
                     default:
                 }
+            }
+        });
+
+        findViewById(R.id.updateCoords).setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                EditText c1 = (EditText) findViewById(R.id.coord1);
+                EditText c2 = (EditText) findViewById(R.id.coord2);
+                int cone = Integer.parseInt(c1.getText().toString());
+                int ctwo = Integer.parseInt(c2.getText().toString());
+                mBebopDrone.currentCoordinates = new int[]{cone, ctwo};
+                mBebopDrone.log+="You are now in coordinates (x,y): ("+cone+","+ctwo+")\n";
+            }
+        });
+
+        findViewById(R.id.sendWall).setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                String color = "";
+                if(((CheckBox)findViewById(R.id.dkbButton)).isChecked()) {
+                    color = "Dark Blue";
+                }
+                else if(((CheckBox)findViewById(R.id.ltbButton)).isChecked()) {
+                    color = "Light Blue";
+                }
+                else if(((CheckBox)findViewById(R.id.ylwButton)).isChecked()) {
+                    color = "Yellow";
+                }
+                else if(((CheckBox)findViewById(R.id.prpButton)).isChecked()) {
+                    color = "Purple";
+                }
+                else if(((CheckBox)findViewById(R.id.blkButton)).isChecked()) {
+                    color = "Black";
+                }
+                else if(((CheckBox)findViewById(R.id.redButton)).isChecked()) {
+                    color = "Red";
+                }
+                else if(((CheckBox)findViewById(R.id.ongButton)).isChecked()) {
+                    color = "Orange";
+                }
+                else if(((CheckBox)findViewById(R.id.grnButton)).isChecked()) {
+                    color = "Green";
+                }
+                else {
+                    color = "White";
+                }
+                mBebopDrone.walls.add(
+                        new Wall(
+                                ((CheckBox)findViewById(R.id.dotBox)).isChecked(),
+                                color,
+                                mBebopDrone.curDirection,
+                                new int[] { mBebopDrone.currentCoordinates[0], mBebopDrone.currentCoordinates[1]}));
+                if(!(((CheckBox)findViewById(R.id.dotBox)).isChecked())) {
+                    mBebopDrone.log +=
+                            "\n\nPerson found at [" + mBebopDrone.currentCoordinates[0] + ", " + mBebopDrone.currentCoordinates[1]
+                            + "]\nThe Color of the wall is " + color
+                                    + "\nIt is on the " + mBebopDrone.curDirection.toString() + " side of the wall\n"
+                            + "Please follow all the previous directions to reach the person\n\n";
+                }
+                // Take picture after sending the wall coordinates
+                mBebopDrone.takePicture();
+            }
+        });
+
+        findViewById(R.id.forwardOne).setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                mBebopDrone.moveForwardOneSpace();
+                runOnUiThread(new Runnable() {
+
+                    @Override
+                    public void run() {
+                        updateCoords();
+                    }
+                });
+            }
+        });
+        findViewById(R.id.autoButton).setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                mBebopDrone.autonomous();
+            }
+        });
+
+        findViewById(R.id.turnLeft).setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                mBebopDrone.turnLeft();
+                runOnUiThread(new Runnable() {
+
+                    @Override
+                    public void run() {
+                        updateCoords();
+                    }
+                });
+            }
+        });
+
+        findViewById(R.id.turnRight).setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                mBebopDrone.turnRight();
+                runOnUiThread(new Runnable() {
+
+                    @Override
+                    public void run() {
+                        updateCoords();
+                    }
+                });
             }
         });
 
@@ -195,7 +259,7 @@ public class autoRun1 extends AppCompatActivity  {
 
         findViewById(R.id.downloadBt).setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                mBebopDrone.getFirstPicture();
+                //mBebopDrone.getFirstPicture();
             }
         });
 
@@ -217,6 +281,7 @@ public class autoRun1 extends AppCompatActivity  {
                 return true;
             }
         });
+
 
         findViewById(R.id.gazDownBt).setOnTouchListener(new View.OnTouchListener() {
             @Override
@@ -254,7 +319,6 @@ public class autoRun1 extends AppCompatActivity  {
                         v.setPressed(false);
                         mBebopDrone.setYaw((byte) 0);
                         break;
-
                     default:
 
                         break;
@@ -388,6 +452,21 @@ public class autoRun1 extends AppCompatActivity  {
         });
 
         mBatteryLabel = (TextView) findViewById(R.id.batteryLabel);
+    }
+    private void writeToFile(String data) {
+        try {
+            File path = getExternalFilesDir(null);
+            File file = new File(path, "flightlog.txt");
+            FileOutputStream stream = new FileOutputStream(file);
+            try {
+                stream.write(mBebopDrone.log.getBytes());
+            } finally {
+                stream.close();
+            }
+        }
+        catch (IOException e) {
+            Log.e("Exception", "File write failed: " + e.toString());
+        }
     }
 
     private final AutoDrone.Listener mBebopListener = new AutoDrone.Listener() {

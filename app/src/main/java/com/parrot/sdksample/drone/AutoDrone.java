@@ -1,8 +1,6 @@
 package com.parrot.sdksample.drone;
 
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.util.Log;
@@ -34,30 +32,22 @@ import com.parrot.arsdk.ardiscovery.ARDiscoveryDeviceService;
 import com.parrot.arsdk.ardiscovery.ARDiscoveryException;
 import com.parrot.arsdk.ardiscovery.ARDiscoveryService;
 import com.parrot.sdksample.activity.autoRun1;
+import com.parrot.sdksample.classes.Wall;
 import com.parrot.sdksample.enums.Direction;
 
-import org.apache.commons.net.ftp.FTP;
-import org.apache.commons.net.ftp.FTPClient;
-import org.apache.commons.net.ftp.FTPFile;
-import org.apache.commons.net.ftp.FTPReply;
-import org.opencv.android.Utils;
 import org.opencv.core.Core;
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfPoint;
-import org.opencv.imgproc.Imgproc;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
-
+/**
+ * Icarus
+ * Pine Crest School
+ * Contact:
+ *  Email: jacob.zipper@pinecrest.edu
+ *  Phone: 954-740-1737
+ */
 public class AutoDrone {
-    private static final String TAG = "AutoDrone";
-
-    private static final int DEVICE_PORT = 21;
-
     public interface Listener {
         /**
          * Called when the connection to the drone changes
@@ -109,7 +99,6 @@ public class AutoDrone {
     }
 
     private List<Listener> mListeners;
-
     private Handler mHandler;
     private ARDiscoveryDevice discoveryDevice;
     private ARDeviceController mDeviceController;
@@ -120,10 +109,10 @@ public class AutoDrone {
     public Button eButton;
     public Direction curDirection;
     public Direction[][] coordinateSystem = new Direction[3][3];
-    public int[] currentCoordinates = {2,2};
-    public Bitmap curPhoto;
-    public FTPClient ftpClient;
-    public Mat curPicMat;
+    public int[] currentCoordinates = new int[2];
+    private static final String TAG = "AutoDrone";
+    public static String log = "";
+    public ArrayList<Wall> walls = new ArrayList<Wall>();
 
     /**
      * Constructor for the Drone. Initializes the FTP client,
@@ -137,7 +126,6 @@ public class AutoDrone {
             }
         }
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-        ftpClient = new FTPClient();
         curDirection = Direction.NORTH;
         coordinateSystem[2][2] = Direction.NORTH;
         mListeners = new ArrayList<>();
@@ -163,6 +151,7 @@ public class AutoDrone {
         } else {
             Log.e(TAG, "DeviceService type is not supported by AutoDrone");
         }
+        mDeviceController.getFeatureCommon().sendHeadlightsIntensity((byte)255,(byte)255);
     }
 
     //region Listener functions
@@ -240,38 +229,41 @@ public class AutoDrone {
     }
 
     /**
-     * Drone takes off, the FTP client connects/moves to the picture directory,
+     * Drone takes off, the
      * and sets the current coordinates to the correct spot.
      */
     public void takeOff() {
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))) {
             mDeviceController.getFeatureARDrone3().sendPilotingTakeOff();
         }
-        currentCoordinates[0] = 2;
-        currentCoordinates[1] = 2;
-
-        try {
-            ftpClient.connect(InetAddress.getByName("192.168.42.1"),21);
-            ftpClient.login("anonymous", "");
-            ftpClient.changeWorkingDirectory("/internal_000/Bebop_2/media");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
         mDeviceController.getFeatureARDrone3().sendPictureSettingsPictureFormatSelection(ARCOMMANDS_ARDRONE3_PICTURESETTINGS_PICTUREFORMATSELECTION_TYPE_ENUM.ARCOMMANDS_ARDRONE3_PICTURESETTINGS_PICTUREFORMATSELECTION_TYPE_JPEG);
+        log+= "Hello judges, PC Drone team here. So, here is how we approached this challenge\n\n" +
+                "To us, the maze looked something like this:\n\n" +
+                "|{0,2}|{1,2}|{2,2}|\n" +
+                "|{0,1}|{1,1}|{2,1}|\n" +
+                "|{0,0}|{1,0}|{2,0}|\n\n" +
+                "So, time to start this dank drone program. Get ready to follow some directions!\n\n" +
+                "Takeoff\n";
     }
 
     /**
-     * Lands the drone and disconnects the FTP client.
+     * Lands the drone and completes the flightlog by notifying the user about all of the walls
      */
     public void land() {
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))) {
             mDeviceController.getFeatureARDrone3().sendPilotingLanding();
         }
-        try {
-            ftpClient.disconnect();
-        } catch (IOException e) {
-            e.printStackTrace();
+        log+="Land\n";
+        for(Wall w : walls) {
+            log+="\n";
+            if(!w.dot) {
+                log+="Person found at [" + w.coords[0] + ", " + w.coords[1] + "]\nThe color of the wall is " + w.col + "\nIt is on the " + w.dir.toString() + " side\nRefer to earlier directions to find this person\n\n";
+            }
+            else {
+                log+="Dot found at [" + w.coords[0] + ", " + w.coords[1] + "]\nThe color of the wall is " + w.col + "\nIt is on the " + w.dir.toString() + " side\n\n";
+            }
         }
+
     }
 
     /**
@@ -283,6 +275,7 @@ public class AutoDrone {
         if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))) {
             mDeviceController.getFeatureARDrone3().sendPilotingEmergency();
         }
+        log+="Emergency\n";
     }
 
     /**
@@ -348,115 +341,65 @@ public class AutoDrone {
         }
     }
 
-    /**
-     * EXPERIMENTAL METHOD. USE AT YOUR OWN RISK.
-     *
-     * Basically this takes a picture, the FTP client then receives it.
-     * After some bitwise shifting to receive the individual rgb values
-     * of the middle pixel, it tries to determine if a wall is in front of it.
-     *
-     * @return returns a boolean if the condition of it seeing a wall is met.
-     */
-    public boolean analyzePicture()  {
-        drone.getFirstPicture();
-        try {
-            Thread.sleep(5000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        if(curPhoto==null) return false;
-        Utils.bitmapToMat(curPhoto,curPicMat);
-        List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
-        Mat tempimg = new Mat();
-        curPicMat.convertTo(tempimg, CvType.CV_32SC1);
-        Imgproc.findContours(tempimg,contours,new Mat(),Imgproc.RETR_FLOODFILL,Imgproc.CHAIN_APPROX_SIMPLE);
-        
-        return false;
-    }
-
-    /**
-     * This method takes the curPicMat and returns the scalar of the most prominent color.
-     *
-     */
 
 
-    /**
-     * Sets curPhoto equal to the first photo in the working directory.
-     */
-    public void getFirstPicture() {
-        try {
-            if (FTPReply.isPositiveCompletion(ftpClient.getReplyCode())) {
-                ftpClient.enterLocalPassiveMode();
-                ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
-                FTPFile[] files = ftpClient.listFiles("/internal_000/Bebop_2/media");
-                boolean firstFileFound = false;
-                for (FTPFile file : files) {
-                    if (!firstFileFound) {
-                        String fileName = file.getName();
-                        if (fileName.endsWith(".jpg")
-                                || fileName.endsWith(".png")) {
-                            String fileWithPath = "/internal_000/Bebop_2/media" + "/" + fileName;
-                            drone.curPhoto = null;
-                            InputStream inStream = ftpClient.retrieveFileStream(fileWithPath);
-                            // Sets the current photo to the first photo in the media directory (most recent)
-                            drone.curPhoto = BitmapFactory.decodeStream(inStream);
-                            inStream.close();
-                            ftpClient.deleteFile(fileWithPath);
-                            break;
-                        }
-                    }
-                }
-            }
-        }catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-
-
-    /**
-     * VERY IMPORTANT METHOD. THIS IS HOW YOU MAKE THE DRONE DO COMPLEX MOVEMENTS FOR A DESIGNATED AMOUNT OF TIME.
-     *
-     * @param flag byte 1 or 0. 1 if you want it to go, 0 if not.
-     * @param x same as setRoll
-     * @param y same as setPitch
-     * @param z same as setYaw
-     * @param g same as setGaz
-     * @param time milliseconds for command to run for.
-     */
     public void setpositionHere(final byte flag, final byte x, final byte y, final byte z, final byte g, final int time) {
         // Based on the values sent, this changes the coordinates and direction of the drone.
-        if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING)) && mFlyingState.equals(ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_ENUM.ARCOMMANDS_ARDRONE3_PILOTINGSTATE_FLYINGSTATECHANGED_STATE_HOVERING)) {
+        if ((mDeviceController != null) && (mState.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING))) {
             if(z < 0) {
                 if(curDirection != Direction.NORTH) curDirection = Direction.values()[(curDirection.ordinal()-1)];
                 else curDirection = Direction.WEST;
-                coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = curDirection;
+                coordinateSystem[currentCoordinates[1]][currentCoordinates[0]] = curDirection;
             }
             else if(z > 0) {
                 if(curDirection != Direction.WEST) curDirection = Direction.values()[(curDirection.ordinal()+1)];
                 else curDirection = Direction.NORTH;
-                coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = curDirection;
+                coordinateSystem[currentCoordinates[1]][currentCoordinates[0]] = curDirection;
             }
             if(y > 0) {
                 if(curDirection == Direction.NORTH) {
-                    coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = null;
-                    currentCoordinates[0]--;
-                    coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = curDirection;
+                    coordinateSystem[currentCoordinates[1]][currentCoordinates[0]] = null;
+                    currentCoordinates[1]++;
+                    try {
+                        coordinateSystem[currentCoordinates[1]][currentCoordinates[0]] = curDirection;
+                    }
+                    catch(ArrayIndexOutOfBoundsException e) {
+                        currentCoordinates[1]--;
+                        coordinateSystem[currentCoordinates[1]][currentCoordinates[0]] = curDirection;
+                    }
                 }
                 else if(curDirection == Direction.EAST) {
-                    coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = null;
-                    currentCoordinates[1]++;
-                    coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = curDirection;
+                    coordinateSystem[currentCoordinates[1]][currentCoordinates[0]] = null;
+                    currentCoordinates[0]++;
+                    try {
+                        coordinateSystem[currentCoordinates[1]][currentCoordinates[0]] = curDirection;
+                    }
+                    catch(ArrayIndexOutOfBoundsException e) {
+                        currentCoordinates[0]--;
+                        coordinateSystem[currentCoordinates[1]][currentCoordinates[0]] = curDirection;
+                    }
                 }
                 else if(curDirection == Direction.WEST) {
-                    coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = null;
-                    currentCoordinates[1]--;
-                    coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = curDirection;
+                    coordinateSystem[currentCoordinates[1]][currentCoordinates[0]] = null;
+                    currentCoordinates[0]--;
+                    try {
+                        coordinateSystem[currentCoordinates[1]][currentCoordinates[0]] = curDirection;
+                    }
+                    catch(ArrayIndexOutOfBoundsException e) {
+                        currentCoordinates[0]++;
+                        coordinateSystem[currentCoordinates[1]][currentCoordinates[0]] = curDirection;
+                    }
                 }
                 else if(curDirection == Direction.SOUTH) {
-                    coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = null;
-                    currentCoordinates[0]++;
-                    coordinateSystem[currentCoordinates[0]][currentCoordinates[1]] = curDirection;
+                    coordinateSystem[currentCoordinates[1]][currentCoordinates[0]] = null;
+                    currentCoordinates[1]--;
+                    try {
+                        coordinateSystem[currentCoordinates[1]][currentCoordinates[0]] = curDirection;
+                    }
+                    catch(ArrayIndexOutOfBoundsException e) {
+                        currentCoordinates[1]++;
+                        coordinateSystem[currentCoordinates[1]][currentCoordinates[0]] = curDirection;
+                    }
                 }
             }
 
@@ -475,13 +418,14 @@ public class AutoDrone {
                         this.sleep(time);
                     } catch (Exception e) {
                     }
-                    mDeviceController.getFeatureARDrone3().setPilotingPCMDFlag((byte) 0);
+                    mDeviceController.getFeatureARDrone3().setPilotingPCMD((byte) 0,(byte)0,(byte)0,(byte)0,(byte)0,0);
                 }
 
             };
             Thread t = new Thread() {
                 @Override
                 public void run() {
+                    // redundancy to make sure the emergency button is available
                     eButton.setOnClickListener(new View.OnClickListener() {
                         public void onClick(View v) {
                             mDeviceController.getFeatureARDrone3().sendPilotingEmergency();
@@ -507,33 +451,100 @@ public class AutoDrone {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        log+="Move forward a space\n";
     }
 
     /**
      * EXPERIMENTAL
      * Command that attempts to turn the drone 90 degrees to the left.
+     * UPDATE
+     * Relatively stable as of 4/23
      */
     public void turnLeft() {
-        drone.setpositionHere((byte) 1, (byte) 0, (byte) 0, (byte) -25, (byte) 0,2500);
+        drone.setpositionHere((byte) 1, (byte) 0, (byte) 0, (byte) -25, (byte) 0, 3750);
         try {
             Thread.sleep(4250);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        log+="Turn left\n";
+    }
+
+    public void autonomous() {
+
+        new Thread() {
+            public void run() {
+                drone.takeOff();
+                try {
+                    this.sleep(3000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                mDeviceController.getFeatureARDrone3().setPilotingPCMDGaz((byte) 10);
+                try {
+                    this.sleep(5000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                mDeviceController.getFeatureARDrone3().setPilotingPCMDGaz((byte) 0);
+                mDeviceController.getFeatureARDrone3().setPilotingPCMDFlag((byte) 1);
+                mDeviceController.getFeatureARDrone3().setPilotingPCMDPitch((byte) 10);
+                try {
+                    this.sleep(7500);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                mDeviceController.getFeatureARDrone3().setPilotingPCMDFlag((byte)0);
+                mDeviceController.getFeatureARDrone3().setPilotingPCMDPitch((byte) 0);
+                try {
+                    this.sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                mDeviceController.getFeatureARDrone3().setPilotingPCMDFlag((byte)1);
+                mDeviceController.getFeatureARDrone3().setPilotingPCMDRoll((byte) 10);
+                try {
+                    this.sleep(4000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                mDeviceController.getFeatureARDrone3().setPilotingPCMDFlag((byte)0);
+                mDeviceController.getFeatureARDrone3().setPilotingPCMDRoll((byte) 0);
+                try {
+                    this.sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }.start();
+        new Thread() {
+            @Override
+            public void run() {
+                // redundancy to make sure the emergency button is available
+                eButton.setOnClickListener(new View.OnClickListener() {
+                    public void onClick(View v) {
+                        mDeviceController.getFeatureARDrone3().sendPilotingEmergency();
+                    }
+                });
+            }
+        }.start();
     }
 
     /**
      * EXPERIMENTAL
      * Command that attempts to turn the drone 90 degrees to the right.
+     * UPDATE
+     * Relatively stable as of 4/23
      */
 
     public void turnRight() {
-        drone.setpositionHere((byte) 1, (byte) 0, (byte) 0, (byte) 25, (byte) 0,2950);
+        drone.setpositionHere((byte) 1, (byte) 0, (byte) 0, (byte) 25, (byte) 0,3750);
         try {
             Thread.sleep(4250);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        log+="Turn right\n";
     }
 
     /**
@@ -562,6 +573,12 @@ public class AutoDrone {
         return device;
     }
 
+    /**
+     * Creates the device controller. The device controller is an instance of
+     * the drone that you can send commands to and receive data from.
+     * @param discoveryDevice
+     * @return returns the device controller of the drone
+     */
     private ARDeviceController createDeviceController(@NonNull ARDiscoveryDevice discoveryDevice) {
         ARDeviceController deviceController = null;
         try {
@@ -618,7 +635,6 @@ public class AutoDrone {
             listener.onFrameReceived(frame);
         }
     }
-
 
 
     public final ARDeviceControllerListener mDeviceControllerListener = new ARDeviceControllerListener() {
